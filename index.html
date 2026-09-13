@@ -1,0 +1,1028 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CyberShield — password strength analysis</title>
+<style>
+:root{
+  --paper:#F1F2EF;
+  --panel:#FFFFFF;
+  --ink:#16191C;
+  --muted:#6B7178;
+  --faint:#9AA0A4;
+  --rule:#D6D9D3;
+  --rule-soft:#E6E8E3;
+
+  --s0:#A81F2B;
+  --s1:#C2761A;
+  --s2:#9A8A24;
+  --s3:#3F7A57;
+  --s4:#1C6B6A;
+
+  --p-common:#A81F2B;
+  --p-word:#C2761A;
+  --p-seq:#8A5A2B;
+  --p-repeat:#7A4A86;
+  --p-keys:#2C5F96;
+  --p-date:#77704A;
+  --p-rand:#3F7A57;
+
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16px;
+  line-height:1.5;
+  font-feature-settings:"kern","liga";
+}
+.wrap{max-width:920px;margin:0 auto;padding:40px 24px 96px}
+
+/* ---------- masthead ---------- */
+.masthead{display:flex;justify-content:space-between;align-items:baseline;gap:24px;flex-wrap:wrap;margin-bottom:36px}
+h1{font-size:22px;font-weight:600;letter-spacing:-0.01em;margin:0}
+.masthead p{margin:0;color:var(--muted);font-size:13.5px;max-width:38ch}
+
+/* ---------- specimen ---------- */
+.specimen{margin-bottom:8px}
+.field{position:relative;display:flex;align-items:center;gap:12px;
+  background:var(--panel);border:1px solid var(--rule);border-radius:3px;
+  padding:0 12px 0 18px;transition:border-color .12s ease}
+.field:focus-within{border-color:var(--ink)}
+#pw{
+  flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);
+  font-family:var(--mono);font-size:clamp(20px,4.6vw,30px);font-weight:500;
+  letter-spacing:.04em;padding:20px 0;
+}
+#pw::placeholder{color:var(--faint);letter-spacing:0}
+.field button{
+  flex:none;border:1px solid var(--rule);background:transparent;color:var(--muted);
+  font:inherit;font-size:12.5px;padding:6px 11px;border-radius:2px;cursor:pointer;
+}
+.field button:hover{border-color:var(--ink);color:var(--ink)}
+.field button:focus-visible,#pw:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+
+/* ---------- segment rail ---------- */
+.rail-scroll{overflow-x:auto;overflow-y:hidden;padding:10px 0 2px;margin-bottom:4px}
+.rail{display:grid;row-gap:5px;width:max-content;min-width:100%}
+.rail .cell{
+  grid-row:1;font-family:var(--mono);font-size:14px;color:var(--muted);
+  text-align:center;line-height:1.2;
+}
+.rail .bar{
+  grid-row:2;height:4px;border-radius:2px;background:var(--seg,var(--muted));
+}
+.rail .tag{
+  grid-row:3;font-size:11px;color:var(--seg,var(--muted));white-space:nowrap;
+  overflow:hidden;text-overflow:clip;line-height:1.3;
+}
+.rail-empty{height:1px}
+
+/* ---------- verdict ---------- */
+.verdict{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;
+  border-top:1px solid var(--rule);padding-top:18px;margin-top:14px}
+.verdict-main{display:flex;align-items:baseline;gap:14px}
+.grade{font-size:26px;font-weight:600;letter-spacing:-.01em;color:var(--grade,var(--muted))}
+.grade-sub{font-size:13.5px;color:var(--muted)}
+.readout{font-family:var(--mono);font-size:13px;color:var(--muted);text-align:right}
+.readout b{color:var(--ink);font-weight:600}
+
+.gauge{display:grid;grid-template-columns:repeat(50,1fr);gap:2px;margin-top:16px;height:12px}
+.gauge i{background:var(--rule-soft);border-radius:1px}
+.gauge i.on{background:var(--grade,var(--muted))}
+.gauge-scale{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--faint)}
+
+/* ---------- panels ---------- */
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:40px}
+@media (max-width:720px){.cols{grid-template-columns:1fr;gap:32px}}
+h2{font-size:14px;font-weight:600;margin:0 0 14px;letter-spacing:-.005em}
+
+table.cost{width:100%;border-collapse:collapse;font-size:13.5px}
+table.cost th{text-align:left;font-weight:400;color:var(--muted);padding:9px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+table.cost td{text-align:right;padding:9px 0 9px 12px;border-bottom:1px solid var(--rule-soft);
+  font-family:var(--mono);font-size:13px;white-space:nowrap;vertical-align:top}
+table.cost tr:last-child th,table.cost tr:last-child td{border-bottom:0}
+table.cost .hot{color:var(--s0);font-weight:600}
+
+ul.findings{list-style:none;margin:0;padding:0;font-size:13.5px}
+ul.findings li{position:relative;padding:0 0 12px 18px;color:var(--ink)}
+ul.findings li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;
+  border-radius:2px;background:var(--seg,var(--muted))}
+ul.findings li span{color:var(--muted)}
+ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--rule-soft);
+  padding:1px 4px;border-radius:2px}
+.placeholder{color:var(--faint);font-size:13.5px;margin:0}
+
+/* ---------- generator ---------- */
+.gen{margin-top:48px;border-top:1px solid var(--rule);padding-top:26px}
+.gen-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 20px}
+.seg-toggle{display:inline-flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+.seg-toggle button{border:0;background:var(--panel);color:var(--muted);font:inherit;font-size:13px;
+  padding:7px 14px;cursor:pointer}
+.seg-toggle button+button{border-left:1px solid var(--rule)}
+.seg-toggle button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--rule);border-radius:2px;background:var(--panel)}
+.stepper button{border:0;background:transparent;font:inherit;font-size:15px;color:var(--muted);
+  width:32px;height:33px;cursor:pointer;line-height:1}
+.stepper button:hover:not(:disabled){color:var(--ink)}
+.stepper button:disabled{opacity:.3;cursor:default}
+.stepper span{font-size:13px;padding:0 4px;min-width:104px;text-align:center;color:var(--ink)}
+.opts{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
+.opts label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.opts input{accent-color:var(--ink);margin:0}
+.reroll{border:1px solid var(--ink);background:var(--ink);color:var(--paper);font:inherit;font-size:13px;
+  padding:8px 16px;border-radius:2px;cursor:pointer}
+.reroll:hover{background:#000}
+
+.suggestions{border-top:1px solid var(--rule-soft)}
+.pool-note{margin:14px 0 0;font-size:12.5px;color:var(--muted);max-width:70ch}
+.sug{display:flex;align-items:center;gap:16px;padding:13px 0;border-bottom:1px solid var(--rule-soft)}
+.sug-pw{flex:1;min-width:0;font-family:var(--mono);font-size:15.5px;word-break:break-all;line-height:1.4}
+.sug-bits{flex:none;font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
+.copy{flex:none;border:1px solid var(--rule);background:transparent;color:var(--muted);font:inherit;
+  font-size:12.5px;padding:6px 12px;border-radius:2px;cursor:pointer;min-width:74px}
+.copy:hover{border-color:var(--ink);color:var(--ink)}
+.copy.done{border-color:var(--s4);color:var(--s4)}
+@media (max-width:560px){
+  .sug{flex-wrap:wrap;gap:8px}
+  .sug-pw{flex-basis:100%}
+  .sug-bits{flex:1;text-align:left}
+}
+
+button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.note{margin-top:40px;padding-top:18px;border-top:1px solid var(--rule);
+  font-size:12.5px;color:var(--faint);max-width:66ch}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>CyberShield</h1>
+    <p>Password strength analysis. Type a password to see how a real
+     attacker would take it apart.</p>
+  </header>
+
+  <section class="specimen">
+    <div class="field">
+      <input id="pw" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
+             spellcheck="false" placeholder="Start typing…" aria-label="Password to analyze">
+      <button id="mask" type="button" aria-pressed="false">Hide</button>
+    </div>
+
+    <div class="rail-scroll"><div class="rail" id="rail"><div class="rail-empty"></div></div></div>
+
+    <div class="verdict">
+      <div class="verdict-main">
+        <span class="grade" id="grade">—</span>
+        <span class="grade-sub" id="gradeSub">Nothing to measure yet</span>
+      </div>
+      <div class="readout" id="readout"></div>
+    </div>
+
+    <div class="gauge" id="gauge" role="img" aria-label="Strength score"></div>
+    <div class="gauge-scale"><span>trivial</span><span>weak</span><span>fair</span><span>strong</span><span>excellent</span></div>
+  </section>
+
+  <div class="cols">
+    <section>
+      <h2>Time to guess it</h2>
+      <table class="cost">
+        <tbody id="costs">
+          <tr><th>Guessing on a login form, rate-limited</th><td>—</td></tr>
+          <tr><th>Guessing on a login form, no limits</th><td>—</td></tr>
+          <tr><th>Stolen database, slow hashing</th><td>—</td></tr>
+          <tr><th>Stolen database, fast hashing on GPUs</th><td>—</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>What the analysis found</h2>
+      <ul class="findings" id="findings"></ul>
+      <p class="placeholder" id="findingsEmpty">Findings appear as you type.</p>
+    </section>
+  </div>
+
+  <section class="gen">
+    <div class="gen-head">
+      <h2 style="margin:0">Make a strong one</h2>
+      <button class="reroll" id="reroll" type="button">New set</button>
+    </div>
+
+    <div class="controls">
+      <span class="seg-toggle" role="group" aria-label="Password style">
+        <button id="modePhrase" type="button" aria-pressed="true">Words</button>
+        <button id="modeChars" type="button" aria-pressed="false">Characters</button>
+      </span>
+      <span class="stepper">
+        <button id="minus" type="button" aria-label="Fewer">−</button>
+        <span id="lenLabel">6 words</span>
+        <button id="plus" type="button" aria-label="More">+</button>
+      </span>
+      <span class="opts" id="opts"></span>
+    </div>
+
+    <div class="suggestions" id="suggestions"></div>
+    <p class="pool-note" id="poolNote"></p>
+  </section>
+
+  <p class="note">Everything runs in this page. Nothing you type is sent anywhere, stored, or logged — you can
+  disconnect from the network and it still works. Suggestions use your browser's cryptographic random
+  number generator.</p>
+
+</div>
+<script>
+/* ============================================================
+   Password strength engine
+   Decomposes a password into the cheapest set of patterns an
+   attacker would use, then scores the total guessing cost.
+   All arithmetic is in log2 space so long passwords never overflow.
+   ============================================================ */
+
+/* ---- 1. The 200 most-used passwords, in rank order ---- */
+const COMMON = `123456 password 123456789 12345678 12345 111111 1234567 sunshine qwerty iloveyou
+princess admin welcome 666666 abc123 football 123123 monkey 654321 !@#$%^&* charlie aa123456
+donald password1 qwerty123 1234 letmein zxcvbnm login starwars 121212 bailey freedom shadow
+passw0rd master baseball buster daniel hannah thomas summer george harley 222222 jjjjjj lovely
+7777777 dragon jessica trustno1 batman superman hunter michael jordan michelle tigger sunshine1
+pepper andrew ginger flower jennifer hottie soccer chelsea diamond nascar jackson cameron
+654321 computer amanda wizard xxxxxxx money phoenix mickey bailey knight iceman tigers purple
+andrea horny dakota aaaaaa player sunshine morgan starwars boomer cowboys edward charles girls
+booboo coffee xxxxxx bulldog ncc1701 rabbit peanut john johnny gandalf spanky winter brandy
+compaq carlos tennis james mike brandon fender anthony blowme ferrari cookie chicken maverick
+chicago joseph diablo sexsex hardcore 666666 willie welcome1 chris panther yamaha justin banana
+driver marine angels fishing david maggie 000000 hockey secret asdf 111222 oliver rachel
+sparky friend 987654 apple ranger buddy heather hannah 102030 orange klaster 112233 mountain
+madison 987654321 nicole jasper red123 samsung matrix 1qaz2wsx qazwsx pass ninja azerty
+solo loveme whatever donald dallas jaguar hello lakers monster spider soccer1 rainbow
+liverpool arsenal chelsea manchester 12341234 qwertyuiop asdfghjkl 1q2w3e4r 1q2w3e4r5t
+zaq12wsx qwe123 abcd1234 a1b2c3 test guest info user root oracle changeme secret1 letmein1`
+  .split(/\s+/).filter(Boolean);
+
+/* ---- 2. Dictionary: common English words + names for pattern matching ---- */
+const WORDS = `the be to of and in that have it for not on with he as you do at this but his by
+from they we say her she or an will my one all would there their what so up out if about who get
+which go me when make can like time no just him know take people into year your good some could
+them see other than then now look only come its over think also back after use two how our work
+first well way even new want because any these give day most us man thing woman life child world
+school state family student group country problem hand part place case week company system program
+question work government number night point home water room mother area money story fact month lot
+right study book eye job word business issue side kind head house service friend father power hour
+game line end member law car city community name president team minute idea kid body information
+back parent face others level office door health person art war history party result change morning
+reason research girl guy moment air teacher force education love hate happy angry green blue black
+white red yellow orange purple silver golden summer winter spring autumn river ocean mountain forest
+garden flower dragon tiger eagle wolf bear lion horse monkey rabbit snake shark falcon phoenix
+angel demon wizard knight castle sword shield magic dream shadow thunder storm lightning rain snow
+fire earth wind star moon sun sky cloud light dark music dance song guitar piano drum coffee sugar
+honey candy apple orange banana cherry lemon grape peach melon pizza burger cheese bread butter
+chocolate cookie soccer football baseball hockey tennis golf swimming running cycling boxing
+computer keyboard monitor mouse screen phone camera network server system access login master
+admin manager password secret private secure hidden safety unlock enter open close start stop
+running walking flying jumping sitting standing james robert john michael william david richard
+joseph thomas charles christopher daniel matthew anthony donald mark paul steven andrew kenneth
+george joshua kevin brian edward ronald timothy jason jeffrey ryan jacob gary nicholas eric
+stephen jonathan larry justin scott brandon frank benjamin gregory samuel raymond patrick
+alexander jack dennis jerry tyler aaron henry douglas peter adam nathan zachary walter kyle
+harold carl jeremy keith roger gerald ethan arthur terry christian andrew joe austin sean
+mary patricia jennifer linda elizabeth barbara susan jessica sarah karen nancy lisa margaret
+betty sandra ashley dorothy kimberly emily donna michelle carol amanda melissa deborah stephanie
+rebecca laura sharon cynthia kathleen amy shirley angela helen anna brenda pamela nicole samantha
+katherine emma ruth christine catherine debra rachel carolyn janet virginia maria heather diane
+julie joyce victoria kelly christina joan evelyn lauren judith olivia frances martha cheryl
+megan andrea hannah jacqueline ann jean alice kathryn gloria teresa sara janice marie julia
+london paris tokyo berlin madrid rome moscow beijing sydney toronto chicago boston seattle
+denver dallas austin miami atlanta phoenix portland detroit houston vegas orlando nashville
+liverpool arsenal chelsea barcelona madrid juventus milan munich dortmund ajax celtic rangers
+january february march april may june july august september october november december
+monday tuesday wednesday thursday friday saturday sunday
+alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar
+papa quebec romeo sierra tango uniform victor whiskey xray yankee zulu
+correct quick brown fox lazy jumps over dog cat mouse bird fish tree leaf grass stone rock sand
+wave beach island desert valley hill field farm road path bridge tower wall gate door window roof
+floor table chair bed lamp clock watch ring chain key lock box bag shoe hat coat shirt dress sock
+glove scarf belt button pocket paper pen pencil brush paint color shape circle square triangle line
+point space time speed force weight height depth width length size number letter sound voice noise
+silence peace order chaos truth false right wrong good evil brave fear hope faith trust doubt anger
+joy sorrow smile laugh cry tear blood bone skin hair tooth heart brain lung liver nerve muscle
+strong weak fast slow high low big small long short wide narrow thick thin heavy light hard soft
+warm cold hot cool wet dry clean dirty fresh stale sweet sour bitter salty spicy tasty hungry
+thirsty tired sleepy awake alive dead young old new ancient modern future past present today
+tomorrow yesterday always never often sometimes maybe surely almost enough plenty little many few
+every each both either neither another other same different similar equal opposite
+troubadour trombone trumpet violin cello flute harp organ banjo fiddle
+america england france germany spain italy japan china india brazil canada mexico russia egypt
+greece turkey poland sweden norway ireland scotland wales holland belgium austria portugal
+kerala mumbai delhi chennai bangalore hyderabad kolkata pune jaipur lucknow kochi calicut
+california texas florida georgia virginia carolina oregon nevada arizona colorado montana ohio
+matrix inception avatar titanic gladiator terminator predator alien rocky rambo batman superman
+spiderman ironman hulk thor loki joker robin flash arrow ranger hunter warrior fighter soldier
+captain colonel general admiral sergeant marshal sheriff deputy warden guardian keeper
+whiskey vodka brandy tequila cognac martini mojito margarita espresso latte mocha cappuccino
+manchester tottenham everton fulham brighton wolves villa palace forest sunderland leeds
+lionel messi ronaldo neymar mbappe haaland pele maradona zidane beckham rooney kane salah
+python java ruby swift kotlin rust golang perl scala haskell linux ubuntu debian windows
+google apple amazon netflix spotify twitter facebook instagram youtube reddit github discord
+qwerty asdfgh zxcvbn dvorak colemak
+freedom liberty justice honor glory victory triumph legend hero champion master genius
+kitten puppy bunny turtle panda koala dolphin whale eagle hawk raven crow swan goose duck
+diamond emerald ruby sapphire pearl crystal marble granite copper bronze steel iron titanium`
+  .split(/\s+/).filter(Boolean);
+
+/* Less-frequent everyday words. These are both offered by the generator and
+   recognised by the matcher — anything we are willing to suggest, we must be
+   willing to spot in someone else's password. */
+const EXTRA = `abbey acorn amber anchor anvil apron arbor arrow ashes aspen atlas attic aviary awake
+bacon badge bagel balcony ballad bamboo banner barley barrel basil basin batch beacon beetle
+bellow bench berry birch biscuit bishop bison blade blanket blaze blossom blunt boulder bounty
+bracket branch brave breeze brick bridle brisk bronze brook broom bubble bucket buckle bugle
+bunker burrow bushel cabin cable cactus cadence camel canal candle canopy canvas canyon carbon
+cargo carol carpet cartoon carve cascade cavern cedar cellar census chalk chapel charm chaser
+chime chisel cider cinder citrus clamp clash clay clever cliff cloak clover cobalt cocoa comet
+compass copper coral cottage cougar cove crane crate crater crayon creek crest cricket crimson
+crisp crown crumb crust cube cumin curfew curl curtain cushion cypress dagger dairy dapper dawn
+decoy denim depot desk dial dimple dingo ditch dock dodge domino donkey donut draft drape drift
+drill drum dune dusk dwell eagle ember emblem ember ensign envoy equator errand ether exile fable
+falcon fanfare fawn fennel fern ferry fiber fiddle filter fjord flake flame flask fleet flint
+flock flour fluke flute foam foliage forge fossil fountain fox foyer frost fudge furnace gable
+gadget gallon gambit garland gauge gavel gazelle gecko geyser ginger glacier glade glaze glider
+gloss glow gnome gopher gorge gourd granite grape gravel grid grill grotto grove guild gully
+gusto gutter gypsum hammer hamlet hangar harbor harvest hatch haven hazel hedge helix hemlock
+herald hermit hickory hinge hoist hollow honey hoop hornet hostel hurdle husk hutch icicle igloo
+index indigo ingot inlet ivory jacket jasmine jetty jewel jigsaw jockey jolt jungle juniper
+kayak kelp kernel kettle keystone kiln kindle kiosk kite knoll lace lagoon lance lantern lapel
+larch lattice lava lavender ledge legume lemon lens lever lichen lilac linen lintel llama loaf
+lobby locket locust lodge loft lotus lumber lunar lupine lyric mallet mango mantle maple marble
+marina marrow marsh mascot meadow medal melody mesa meteor mingle minnow mint mirror mitten
+molten mosaic moss motto mound muffin mulch mural muslin nectar needle nestle nickel nimble
+nomad notch nozzle nugget nutmeg oasis oatmeal obelisk octave olive onyx opal orbit orchid
+osprey otter outpost oxide oyster paddle pagoda palace pallet pantry papaya parcel parlor pastel
+pasture patio pebble pelican pepper pergola perch petal pewter pillar pilot pinch pine pistol
+piston plank plaza pledge plume plywood pocket podium pollen pond poplar poppy porch portal
+pouch prairie prism prong pumice pumpkin purse pyre quarry quartz quill quilt quiver radish
+rafter ragged rally rampart ranch rapids rattle ravine razor realm reef reel relic reptile
+rhubarb ribbon ridge rifle rind ripple risk roam robin rodeo rogue roost rosin rubble rudder
+ruffle runway rustic saddle saffron sage salmon salute sandal sapling sash satchel saucer scale
+scarf scenic scoop scout scroll sculpt seabed seagull seam sedge sequin shale shanty shawl shed
+sherbet shingle shore shrub shutter sickle sienna sifter signal silo simmer sinew siren sketch
+skiff skirt sled sleeve slope sludge sluice smock snug socket solace sonnet sorrel spark spatula
+spigot spindle spiral splint sponge spool sprig spruce spur squash stable stack stag stamp stanza
+staple starch stencil stipple stirrup stoop stork stove strand straw stream stucco stump sturdy
+suede sultan sumac summit sundial supple surf swamp swivel sycamore syrup tabby tackle talon
+tandem tangle tapestry tavern teak tempo tendril tether thatch thicket thistle thorn thread
+thrush tidal timber tinder tinsel toffee token tonic topaz torch tortoise totem toucan trail
+trellis trench tribe trickle trolley trough trowel truffle trunk tulip tundra tunnel turbine
+turnip tusk twig twine ulster umber urchin utensil valley vane vanilla vault velvet vendor
+verbena vessel vinyl violet vista volley voyage wafer wagon walnut warble warden wharf wheat
+whisk widget wicker willow wisp wombat wreath wrench yarn yeast yonder zephyr zenith zigzag`.split(/\s+/).filter(Boolean);
+
+const RANK_COMMON = new Map(COMMON.map((w, i) => [w, i + 1]));
+const RANK_WORD = new Map([...WORDS, ...EXTRA].map((w, i) => [w, i + 1]));
+
+/* ---- 3. Keyboard adjacency (QWERTY) ---- */
+const ROWS = ["`1234567890-=", "qwertyuiop[]\\", "asdfghjkl;'", "zxcvbnm,./"];
+const SHIFTED = "~!@#$%^&*()_+{}|:\"<>?";
+const ADJ = (() => {
+  const m = new Map();
+  const shiftMap = { "`":"~","1":"!","2":"@","3":"#","4":"$","5":"%","6":"^","7":"&","8":"*",
+    "9":"(","0":")","-":"_","=":"+","[":"{","]":"}","\\":"|",";":":","'":"\"",",":"<",".":">","/":"?" };
+  const pos = new Map();
+  ROWS.forEach((row, r) => [...row].forEach((ch, c) => pos.set(ch, [r, c])));
+  const put = (a, b) => {
+    if (!m.has(a)) m.set(a, new Set());
+    m.get(a).add(b);
+  };
+  for (const [ch, [r, c]] of pos) {
+    for (const [dr, dc] of [[0,1],[0,-1],[1,0],[-1,0],[1,-1],[-1,1],[1,1],[-1,-1]]) {
+      const row = ROWS[r + dr];
+      if (!row) continue;
+      const n = row[c + dc];
+      if (n) put(ch, n);
+    }
+  }
+  // letters also neighbour their shifted twins' bases
+  const out = new Map();
+  for (const [k, v] of m) out.set(k, v);
+  for (const [base, sh] of Object.entries(shiftMap)) {
+    if (out.has(base)) out.set(sh, new Set([...out.get(base)].map(x => shiftMap[x] || x)));
+  }
+  return out;
+})();
+
+const isAdjacent = (a, b) => {
+  const la = a.toLowerCase(), lb = b.toLowerCase();
+  const s = ADJ.get(la);
+  return !!s && (s.has(lb) || s.has(b));
+};
+
+/* ---- 4. Leet substitutions ---- */
+const LEET = { "4":"a","@":"a","8":"b","(":"c","3":"e","6":"g","9":"g","1":"l","!":"i",
+  "|":"l","0":"o","5":"s","$":"s","7":"t","+":"t","2":"z","<":"c","{":"c" };
+const AMBIGUOUS = { "1":["l","i"], "0":["o"], "5":["s"], "!":["i"], "|":["l","i"] };
+
+/* Generate plausible de-leeted lowercase forms of a token (capped). */
+function deleet(token) {
+  const plain = token.toLowerCase();
+  let forms = [""];
+  let subs = 0;
+  for (const ch of token.toLowerCase()) {
+    const alts = AMBIGUOUS[ch] || (LEET[ch] ? [LEET[ch]] : null);
+    if (alts) {
+      subs++;
+      const next = [];
+      for (const f of forms) for (const a of alts) next.push(f + a);
+      forms = next.length > 48 ? next.slice(0, 48) : next;
+    } else {
+      forms = forms.map(f => f + ch);
+    }
+  }
+  return { forms: [...new Set([plain, ...forms])], subs, plain };
+}
+
+/* ---- 5. Small maths helpers ---- */
+const LOG2 = Math.log2;
+const nCk = (n, k) => {
+  if (k < 0 || k > n) return 0;
+  let r = 1;
+  for (let i = 1; i <= k; i++) r = (r * (n - k + i)) / i;
+  return r;
+};
+const log2Factorial = n => {
+  let s = 0;
+  for (let i = 2; i <= n; i++) s += LOG2(i);
+  return s;
+};
+
+/* How much does capitalisation cost the attacker? */
+function caseMultiplier(token) {
+  if (token === token.toLowerCase()) return 1;
+  if (token === token.toUpperCase()) return 2;
+  if (token[0] === token[0].toUpperCase() && token.slice(1) === token.slice(1).toLowerCase()) return 2;
+  const U = [...token].filter(c => c >= "A" && c <= "Z").length;
+  const L = [...token].filter(c => c >= "a" && c <= "z").length;
+  let v = 0;
+  for (let i = 1; i <= Math.min(U, L); i++) v += nCk(U + L, i);
+  return Math.max(v, 2);
+}
+
+/* ---- 6. Character-set size, for the brute-force fallback ---- */
+function cardinality(pw) {
+  let c = 0;
+  if (/[a-z]/.test(pw)) c += 26;
+  if (/[A-Z]/.test(pw)) c += 26;
+  if (/[0-9]/.test(pw)) c += 10;
+  if (/[ !-\/:-@\[-`{-~]/.test(pw)) c += 33;
+  if (/[^\x00-\x7F]/.test(pw)) c += 100;
+  return Math.max(c, 10);
+}
+
+/* ============================================================
+   Pattern matchers. Each returns {i, j, bits, type, token, note}
+   where i..j is inclusive and bits = log2(guesses to reach it).
+   ============================================================ */
+
+function dictionaryMatches(pw) {
+  const out = [];
+  const n = pw.length;
+  for (let i = 0; i < n; i++) {
+    const lim = Math.min(i + 23, n - 1);
+    for (let j = i + 2; j <= lim; j++) {
+      const token = pw.slice(i, j + 1);
+      const { forms, subs, plain } = deleet(token);
+      const rev = [...token.toLowerCase()].reverse().join("");
+      for (const form of forms) {
+        let rank = null, kind = null;
+        if (RANK_COMMON.has(form)) { rank = RANK_COMMON.get(form); kind = "common"; }
+        else if (RANK_WORD.has(form)) { rank = RANK_WORD.get(form) * 3; kind = "word"; }
+        if (rank === null) continue;
+        const usedLeet = subs > 0 && form !== plain;
+        const guesses = rank * caseMultiplier(token) * (usedLeet ? Math.pow(2, Math.min(subs, 6)) : 1);
+        out.push({
+          i, j, type: kind, token, bits: LOG2(guesses),
+          leet: usedLeet, reversed: false,
+          rankInfo: kind === "common" ? RANK_COMMON.get(form) : RANK_WORD.get(form),
+          base: form
+        });
+        break;
+      }
+      if (RANK_WORD.has(rev) && rev.length > 3) {
+        out.push({
+          i, j, type: "word", token, bits: LOG2(RANK_WORD.get(rev) * 3 * 2 * caseMultiplier(token)),
+          leet: false, reversed: true, rankInfo: RANK_WORD.get(rev), base: rev
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function sequenceMatches(pw) {
+  const out = [];
+  const n = pw.length;
+  let i = 0;
+  while (i < n - 2) {
+    const d = pw.charCodeAt(i + 1) - pw.charCodeAt(i);
+    if (d !== 1 && d !== -1) { i++; continue; }
+    let j = i + 1;
+    while (j + 1 < n && pw.charCodeAt(j + 1) - pw.charCodeAt(j) === d) j++;
+    if (j - i + 1 >= 3) {
+      const token = pw.slice(i, j + 1);
+      const space = /^[0-9]+$/.test(token) ? 10 : /^[a-zA-Z]+$/.test(token) ? 26 : 95;
+      const obvious = /^[a1zZaA09]/.test(token[0]) ? 4 : space;
+      out.push({ i, j, type: "seq", token,
+        bits: LOG2(obvious * (d === 1 ? 1 : 2) * token.length), ascending: d === 1 });
+      i = j;
+    } else i++;
+  }
+  return out;
+}
+
+function repeatMatches(pw) {
+  const out = [];
+  const n = pw.length;
+  for (let unit = 1; unit <= Math.floor(n / 2); unit++) {
+    for (let i = 0; i + unit * 2 <= n; i++) {
+      const base = pw.slice(i, i + unit);
+      let reps = 1, j = i + unit;
+      while (j + unit <= n && pw.slice(j, j + unit) === base) { reps++; j += unit; }
+      if (reps >= 2 && unit * reps >= 3) {
+        const baseBits = LOG2(Math.pow(cardinality(base), unit));
+        out.push({ i, j: j - 1, type: "repeat", token: pw.slice(i, j),
+          bits: baseBits + LOG2(reps), base, reps });
+        i = j - unit;
+      }
+    }
+  }
+  return out;
+}
+
+function keyboardMatches(pw) {
+  const out = [];
+  const n = pw.length;
+  let i = 0;
+  while (i < n - 2) {
+    let j = i, turns = 0, shifted = 0, prevDir = null;
+    while (j + 1 < n && isAdjacent(pw[j], pw[j + 1])) {
+      if (SHIFTED.includes(pw[j + 1])) shifted++;
+      const dir = pw.charCodeAt(j + 1) - pw.charCodeAt(j);
+      if (prevDir !== null && dir !== prevDir) turns++;
+      prevDir = dir;
+      j++;
+    }
+    const len = j - i + 1;
+    if (len >= 3) {
+      const token = pw.slice(i, j + 1);
+      let g = 47 * Math.pow(3.2, len - 1) * (1 + turns * 0.5);
+      if (shifted) g *= Math.min(Math.pow(2, shifted), 64);
+      out.push({ i, j, type: "keys", token, bits: LOG2(g), turns });
+      i = j;
+    } else i++;
+  }
+  return out;
+}
+
+function dateMatches(pw) {
+  const out = [];
+  const re = /(19|20)\d\d/g;
+  let m;
+  while ((m = re.exec(pw)) !== null) {
+    out.push({ i: m.index, j: m.index + 3, type: "date", token: m[0], bits: LOG2(200), year: true });
+    re.lastIndex = m.index + 1;
+  }
+  const full = /(\d{1,2})([\/\-. ]?)(\d{1,2})\2((19|20)?\d\d)/g;
+  while ((m = full.exec(pw)) !== null) {
+    const a = +m[1], b = +m[3];
+    if (a < 1 || a > 31 || b < 1 || b > 31) continue;
+    out.push({ i: m.index, j: m.index + m[0].length - 1, type: "date", token: m[0],
+      bits: LOG2(31 * 12 * 200 * 4), year: false });
+  }
+  return out;
+}
+
+/* ============================================================
+   Decomposition: cheapest cover of the password
+   ============================================================ */
+function analyze(pw) {
+  if (!pw) return null;
+  const n = pw.length;
+  const card = cardinality(pw);
+  const perChar = LOG2(card);
+
+  const all = [
+    ...dictionaryMatches(pw), ...sequenceMatches(pw),
+    ...repeatMatches(pw), ...keyboardMatches(pw), ...dateMatches(pw)
+  ];
+  const endingAt = Array.from({ length: n }, () => []);
+  for (const m of all) if (m.j < n) endingAt[m.j].push(m);
+
+  const best = new Array(n + 1).fill(Infinity);
+  const from = new Array(n + 1).fill(null);
+  best[0] = 0;
+  for (let k = 1; k <= n; k++) {
+    if (best[k - 1] + perChar < best[k]) {
+      best[k] = best[k - 1] + perChar;
+      from[k] = { i: k - 1, j: k - 1, type: "rand", token: pw[k - 1], bits: perChar };
+    }
+    for (const m of endingAt[k - 1]) {
+      const cost = best[m.i] + m.bits;
+      if (cost < best[k]) { best[k] = cost; from[k] = m; }
+    }
+  }
+
+  // walk back, merging runs of unmatched characters
+  const segs = [];
+  let k = n;
+  while (k > 0) {
+    const m = from[k];
+    segs.push(m);
+    k = m.i;
+  }
+  segs.reverse();
+  const merged = [];
+  for (const s of segs) {
+    const last = merged[merged.length - 1];
+    if (s.type === "rand" && last && last.type === "rand") {
+      last.j = s.j;
+      last.token += s.token;
+      last.bits += s.bits;
+    } else merged.push({ ...s });
+  }
+
+  // A character that shows up repeatedly as a lone separator is a delimiter, not a
+  // random choice. The attacker guesses the delimiter once and reuses it for free.
+  const loneCounts = new Map();
+  for (const s of merged)
+    if (s.type === "rand" && s.token.length === 1 && /[^A-Za-z0-9]/.test(s.token))
+      loneCounts.set(s.token, (loneCounts.get(s.token) || 0) + 1);
+  let saved = 0, delimiter = null;
+  for (const [ch, count] of loneCounts) {
+    if (count < 2) continue;
+    delimiter = ch;
+    let seen = 0;
+    for (const s of merged) {
+      if (s.type === "rand" && s.token === ch) {
+        seen++;
+        if (seen === 1) { s.delimiter = true; continue; }   // first one pays
+        saved += s.bits - 0.35;                              // the rest are near-free
+        s.bits = 0.35;
+        s.delimiter = true;
+      }
+    }
+  }
+
+  // Knowing the shape of a password ("word, dash, word, dash…") is cheap for an
+  // attacker: templates are enumerated, so this bonus is capped rather than factorial.
+  const structureBits = Math.min(log2Factorial(merged.length), 8);
+  const bits = best[n] - saved + structureBits;
+  return { pw, bits, segments: merged, cardinality: card, structureBits, delimiter };
+}
+
+/* ---- Scoring: bits -> 0-100, with named bands ---- */
+const BANDS = [
+  { max: 28,  name: "Trivial",   sub: "Falls in the first seconds of any real attack" },
+  { max: 40,  name: "Weak",      sub: "A stolen database would give this up quickly" },
+  { max: 56,  name: "Fair",      sub: "Fine for low-stakes accounts, not for anything important" },
+  { max: 76,  name: "Strong",    sub: "Holds up against offline cracking today" },
+  { max: 1e9, name: "Excellent", sub: "Out of reach of any attack we can currently build" }
+];
+const KNOTS = [[0,0],[28,20],[40,40],[56,60],[76,85],[100,100]];
+
+function score(bits) {
+  for (let i = 1; i < KNOTS.length; i++) {
+    const [b0, s0] = KNOTS[i - 1], [b1, s1] = KNOTS[i];
+    if (bits <= b1) return Math.round(s0 + ((bits - b0) / (b1 - b0)) * (s1 - s0));
+  }
+  return 100;
+}
+function band(bits) {
+  return BANDS.find(b => bits < b.max) || BANDS[BANDS.length - 1];
+}
+
+/* ---- Crack time, computed via log10 so nothing overflows ---- */
+const SCENARIOS = [
+  { label: "Guessing on a login form, rate-limited", rate: 100 / 3600 },
+  { label: "Guessing on a login form, no limits",    rate: 10 },
+  { label: "Stolen database, slow hashing",          rate: 2e4 },
+  { label: "Stolen database, fast hashing on GPUs",  rate: 1e11 }
+];
+
+function sig(x) {
+  if (x >= 100) return String(Math.round(x / 10) * 10);
+  if (x >= 10) return String(Math.round(x));
+  return String(Math.round(x * 10) / 10);
+}
+
+function formatTime(log10s) {
+  if (log10s < 0) return "instantly";
+  const val = e => Math.pow(10, log10s - e);
+  if (log10s < Math.log10(60)) return sig(val(0)) + " seconds";
+  if (log10s < Math.log10(3600)) return sig(val(Math.log10(60))) + " minutes";
+  if (log10s < Math.log10(86400)) return sig(val(Math.log10(3600))) + " hours";
+  if (log10s < Math.log10(2629800)) return sig(val(Math.log10(86400))) + " days";
+  if (log10s < Math.log10(31557600)) return sig(val(Math.log10(2629800))) + " months";
+  const y = log10s - Math.log10(31557600);
+  if (y < 3) return sig(Math.pow(10, y)) + " years";
+  if (y < 6) return sig(Math.pow(10, y - 3)) + " thousand years";
+  if (y < 9) return sig(Math.pow(10, y - 6)) + " million years";
+  if (y < 12) return sig(Math.pow(10, y - 9)) + " billion years";
+  if (y < 15) return sig(Math.pow(10, y - 12)) + " trillion years";
+  return "effectively forever";
+}
+
+function crackTimes(bits) {
+  return SCENARIOS.map(s => {
+    const log10s = (bits - 1) * Math.log10(2) - Math.log10(s.rate);
+    return { label: s.label, text: formatTime(log10s), instant: log10s < 0 };
+  });
+}
+
+if (typeof module !== "undefined") {
+  module.exports = { analyze, score, band, crackTimes, formatTime, WORDS, COMMON };
+}
+
+/* ============================================================
+   Findings — turning the decomposition into plain language
+   ============================================================ */
+const SEG_COLOR = {
+  common: "var(--p-common)", word: "var(--p-word)", seq: "var(--p-seq)",
+  repeat: "var(--p-repeat)", keys: "var(--p-keys)", date: "var(--p-date)", rand: "var(--p-rand)"
+};
+const SEG_LABEL = {
+  common: "known password", word: "dictionary word", seq: "run",
+  repeat: "repeat", keys: "keyboard path", date: "date", rand: "unpredictable"
+};
+const q = s => `<code>${s.replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c]))}</code>`;
+
+function findings(a) {
+  const out = [];
+  const push = (type, text) => out.length < 5 && out.push({ type, text });
+  const weakest = a.segments.filter(s => s.type !== "rand").sort((x, y) => x.bits - y.bits);
+
+  for (const s of weakest) {
+    if (s.type === "common") {
+      const r = s.rankInfo;
+      push("common", `${q(s.token)} is number ${r} on the list of the most-used passwords in the world. ` +
+        `<span>Cracking tools start here, so this falls before an attack has really begun.</span>`);
+    } else if (s.type === "word") {
+      const extras = [];
+      if (s.leet) extras.push("swapping letters for lookalike digits");
+      if (s.reversed) extras.push("spelling it backwards");
+      if (/[A-Z]/.test(s.token)) extras.push("capitalising");
+      push("word", `${q(s.token)} is a common word. <span>` +
+        (extras.length ? `${extras.join(" and ")} ${extras.length > 1 ? "are" : "is"} the first thing guessers try — it multiplies their work by a handful, not by millions.` :
+          `Word lists of hundreds of thousands of entries are tried before anything else.`) + `</span>`);
+    } else if (s.type === "seq") {
+      push("seq", `${q(s.token)} runs straight ${s.ascending ? "up" : "down"} in order. ` +
+        `<span>There are only a few dozen runs like it, and they are all on the list.</span>`);
+    } else if (s.type === "repeat") {
+      push("repeat", `${q(s.token)} is ${q(s.base)} repeated ${s.reps} times. ` +
+        `<span>Repeating a character costs the attacker almost nothing — the ${s.reps}× only adds about a bit.</span>`);
+    } else if (s.type === "keys") {
+      push("keys", `${q(s.token)} traces a path across neighbouring keys. ` +
+        `<span>Keyboard walks feel random to type and are not: the whole set is enumerated in seconds.</span>`);
+    } else if (s.type === "date") {
+      push("date", s.year
+        ? `${q(s.token)} is a year. <span>Every year from 1900 to now gets appended to every word as a matter of routine.</span>`
+        : `${q(s.token)} reads as a date. <span>Birthdays and anniversaries are a space of roughly a million — a rounding error.</span>`);
+    }
+  }
+
+  // Structural notes
+  const pw = a.pw;
+  if (pw.length < 8) push("common", `Only ${pw.length} characters. <span>Length does more for you than any symbol you can add.</span>`);
+  if (/^\d+$/.test(pw) && pw.length >= 4)
+    push("seq", `Digits only. <span>That is a space of 10<sup>${pw.length}</sup>, which a graphics card sweeps end to end.</span>`);
+
+  // The honest caveat: a chunk we could not match may still be a word we simply do not have.
+  const unknown = a.segments.filter(s => s.type === "rand" && s.token.length >= 4 && /^[A-Za-z]+$/.test(s.token));
+  for (const s of unknown) {
+    push("rand", `${q(s.token)} is not in this tool's word list, so it is being counted as unpredictable. ` +
+      `<span>If it is a real word, a name or a place in any language, the score above is optimistic — the list here is a sample, not every word ever written.</span>`);
+    break;
+  }
+
+  if (!out.length) {
+    push("rand", `No words, dates, runs or keyboard paths found. ` +
+      `<span>The strength here is coming from raw unpredictability, which is exactly where you want it to come from.</span>`);
+  }
+  return out;
+}
+
+/* ============================================================
+   Generation — real randomness, honestly measured
+   ============================================================ */
+const HAS_CRYPTO = typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function";
+
+function randInt(max) {
+  if (!HAS_CRYPTO) throw new Error("no secure randomness available");
+  // Rejection sampling: taking a plain remainder would bias the low values.
+  const limit = Math.floor(0xFFFFFFFF / max) * max;
+  const buf = new Uint32Array(1);
+  let x;
+  do { crypto.getRandomValues(buf); x = buf[0]; } while (x >= limit);
+  return x % max;
+}
+const pick = arr => arr[randInt(arr.length)];
+
+
+const PHRASE_WORDS = [...new Set([...WORDS, ...EXTRA].filter(w => /^[a-z]{4,8}$/.test(w)))];
+
+function makePassphrase(count, opts) {
+  const words = Array.from({ length: count }, () => pick(PHRASE_WORDS));
+  let bits = count * Math.log2(PHRASE_WORDS.length);
+  let parts = opts.caps ? words.map(w => w[0].toUpperCase() + w.slice(1)) : words;
+  let text = parts.join("-");
+  if (opts.digit) { text += randInt(10); bits += Math.log2(10); }
+  return { text, bits };
+}
+
+function makeCharacters(len, opts) {
+  let pool = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
+  if (opts.digits) pool += "23456789";
+  if (opts.symbols) pool += "!@#$%^&*-_=+?";
+  const text = Array.from({ length: len }, () => pool[randInt(pool.length)]).join("");
+  return { text, bits: len * Math.log2(pool.length) };
+}
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+const $ = id => document.getElementById(id);
+const esc = c => c === " " ? "␣" : ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c] || c);
+const GRADE_COLOR = ["var(--s0)","var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
+
+let masked = false;
+
+function renderRail(a) {
+  const rail = $("rail");
+  if (!a) { rail.style.gridTemplateColumns = ""; rail.innerHTML = '<div class="rail-empty"></div>'; return; }
+  const n = a.pw.length;
+  const cell = n <= 20 ? 22 : n <= 36 ? 16 : n <= 60 ? 12 : 9;
+  rail.style.gridTemplateColumns = `repeat(${n}, ${cell}px)`;
+  let html = "";
+  for (let k = 0; k < n; k++) {
+    const code = a.pw.codePointAt(k);
+    const wide = code > 0xFFFF;                      // surrogate pair: draw once, skip its tail
+    const low = k > 0 && a.pw.charCodeAt(k) >= 0xDC00 && a.pw.charCodeAt(k) <= 0xDFFF;
+    const glyph = masked ? "•" : low ? "" : wide ? String.fromCodePoint(code) : esc(a.pw[k]);
+    html += `<div class="cell" style="grid-column:${k + 1};font-size:${Math.min(cell - 6, 15)}px">${glyph}</div>`;
+  }
+  for (const s of a.segments) {
+    const color = SEG_COLOR[s.type], label = SEG_LABEL[s.type];
+    const width = (s.j - s.i + 1) * cell;
+    const col = `grid-column:${s.i + 1}/${s.j + 2}`;
+    html += `<div class="bar" style="${col};--seg:${color}"></div>`;
+    html += `<div class="tag" style="${col};--seg:${color}">${width >= label.length * 5.8 ? label : ""}</div>`;
+  }
+  rail.innerHTML = html;
+}
+
+function renderVerdict(a) {
+  const gauge = $("gauge");
+  if (!a) {
+    $("grade").textContent = "—";
+    $("grade").style.setProperty("--grade", "var(--muted)");
+    $("gradeSub").textContent = "Nothing to measure yet";
+    $("readout").innerHTML = "";
+    gauge.innerHTML = Array.from({ length: 50 }, () => "<i></i>").join("");
+    gauge.removeAttribute("style");
+    $("costs").innerHTML = SCENARIOS.map(s => `<tr><th>${s.label}</th><td>—</td></tr>`).join("");
+    $("findings").innerHTML = "";
+    $("findingsEmpty").style.display = "";
+    return;
+  }
+  const b = band(a.bits), sc = score(a.bits), idx = BANDS.indexOf(b);
+  const color = GRADE_COLOR[idx];
+
+  $("grade").textContent = b.name;
+  $("grade").style.setProperty("--grade", color);
+  $("gradeSub").textContent = b.sub;
+  $("readout").innerHTML = `<b>${sc}</b>/100 &nbsp; ${a.bits.toFixed(1)} bits`;
+
+  gauge.style.setProperty("--grade", color);
+  const on = Math.round(sc / 2);
+  gauge.innerHTML = Array.from({ length: 50 }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("");
+  gauge.setAttribute("aria-label", `Strength ${sc} out of 100, rated ${b.name}`);
+
+  $("costs").innerHTML = crackTimes(a.bits)
+    .map(c => `<tr><th>${c.label}</th><td class="${c.instant ? "hot" : ""}">${c.text}</td></tr>`).join("");
+
+  const f = findings(a);
+  $("findings").innerHTML = f.map(x => `<li style="--seg:${SEG_COLOR[x.type]}">${x.text}</li>`).join("");
+  $("findingsEmpty").style.display = f.length ? "none" : "";
+}
+
+function update() {
+  const pw = $("pw").value;
+  const a = pw ? analyze(pw.slice(0, 128)) : null;
+  renderRail(a);
+  renderVerdict(a);
+}
+
+$("pw").addEventListener("input", update);
+$("mask").addEventListener("click", () => {
+  masked = !masked;
+  $("pw").type = masked ? "password" : "text";
+  $("mask").textContent = masked ? "Show" : "Hide";
+  $("mask").setAttribute("aria-pressed", String(masked));
+  update();
+});
+
+/* ============================================================
+   Generator
+   ============================================================ */
+const state = { mode: "phrase", words: 7, chars: 16, digit: true, caps: false, digits: true, symbols: true };
+
+function renderControls() {
+  const phrase = state.mode === "phrase";
+  $("modePhrase").setAttribute("aria-pressed", String(phrase));
+  $("modeChars").setAttribute("aria-pressed", String(!phrase));
+  $("lenLabel").textContent = phrase ? `${state.words} words` : `${state.chars} characters`;
+  const v = phrase ? state.words : state.chars;
+  $("minus").disabled = v <= (phrase ? 3 : 8);
+  $("plus").disabled = v >= (phrase ? 10 : 40);
+  $("opts").innerHTML = phrase
+    ? `<label><input type="checkbox" id="o1" ${state.digit ? "checked" : ""}> Add a digit</label>
+       <label><input type="checkbox" id="o2" ${state.caps ? "checked" : ""}> Capitalise</label>`
+    : `<label><input type="checkbox" id="o3" ${state.digits ? "checked" : ""}> Digits</label>
+       <label><input type="checkbox" id="o4" ${state.symbols ? "checked" : ""}> Symbols</label>`;
+  $("poolNote").textContent = phrase
+    ? `Each word is drawn at random from a list of ${PHRASE_WORDS.length}, so every word adds ${Math.log2(PHRASE_WORDS.length).toFixed(1)} bits. Capitalising adds none — it is there only for sites that insist on it. Times assume the worst case: a stolen database cracked on GPUs.`
+    : `Characters are drawn at random from a set of ${(state.digits ? 8 : 0) + (state.symbols ? 13 : 0) + 49}. Look-alikes (l, I, O, 0, 1) are left out so you can read it back. Times assume the worst case: a stolen database cracked on GPUs.`;
+  const bind = (id, key) => { const el = $(id); if (el) el.addEventListener("change", e => { state[key] = e.target.checked; regenerate(); }); };
+  bind("o1", "digit"); bind("o2", "caps"); bind("o3", "digits"); bind("o4", "symbols");
+}
+
+function regenerate() {
+  renderControls();
+  if (!HAS_CRYPTO) {
+    $("suggestions").innerHTML =
+      `<p class="placeholder" style="padding:14px 0">This browser will not give us cryptographic randomness, ` +
+      `so we are not going to invent passwords with a weaker source. Open this page over https and try again.</p>`;
+    $("reroll").disabled = true;
+    return;
+  }
+  const rows = Array.from({ length: 5 }, () => state.mode === "phrase"
+    ? makePassphrase(state.words, state)
+    : makeCharacters(state.chars, state));
+
+  $("suggestions").innerHTML = rows.map((r, i) => `
+    <div class="sug">
+      <span class="sug-pw" data-i="${i}" role="button" tabindex="0"
+            aria-label="Load this password into the analyzer" title="Load into the analyzer">${r.text.replace(/</g, "&lt;")}</span>
+      <span class="sug-bits">${r.bits.toFixed(0)} bits · ${crackTimes(r.bits)[3].text}</span>
+      <button class="copy" type="button" data-i="${i}">Copy</button>
+    </div>`).join("");
+
+  $("suggestions").querySelectorAll(".copy").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const text = rows[+btn.dataset.i].text;
+      try { await navigator.clipboard.writeText(text); }
+      catch {
+        const t = document.createElement("textarea");
+        t.value = text; document.body.appendChild(t); t.select();
+        document.execCommand("copy"); t.remove();
+      }
+      btn.textContent = "Copied";
+      btn.classList.add("done");
+      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1400);
+    });
+  });
+
+  const load = el => { $("pw").value = rows[+el.dataset.i].text; update(); $("pw").focus(); };
+  $("suggestions").querySelectorAll(".sug-pw").forEach(el => {
+    el.addEventListener("click", () => load(el));
+    el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); load(el); } });
+  });
+}
+
+$("modePhrase").addEventListener("click", () => { state.mode = "phrase"; regenerate(); });
+$("modeChars").addEventListener("click", () => { state.mode = "chars"; regenerate(); });
+$("minus").addEventListener("click", () => {
+  if (state.mode === "phrase") state.words = Math.max(3, state.words - 1);
+  else state.chars = Math.max(8, state.chars - 2);
+  regenerate();
+});
+$("plus").addEventListener("click", () => {
+  if (state.mode === "phrase") state.words = Math.min(10, state.words + 1);
+  else state.chars = Math.min(40, state.chars + 2);
+  regenerate();
+});
+$("reroll").addEventListener("click", regenerate);
+
+update();
+regenerate();
+
+</script>
+</body>
+</html>
