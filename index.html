@@ -3,180 +3,421 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
 <title>CyberShield — password strength analysis</title>
 <style>
 :root{
-  --paper:#F1F2EF;
-  --panel:#FFFFFF;
-  --ink:#16191C;
-  --muted:#6B7178;
-  --faint:#9AA0A4;
-  --rule:#D6D9D3;
-  --rule-soft:#E6E8E3;
+  --ground:#151B23;
+  --panel:#1C242E;
+  --raised:#242E3A;
+  --rule:#2F3A47;
+  --rule-soft:#252E39;
+  --text:#E6EAEE;
+  --muted:#8C97A3;
+  --faint:#5F6B78;
 
-  --s0:#A81F2B;
-  --s1:#C2761A;
-  --s2:#9A8A24;
-  --s3:#3F7A57;
-  --s4:#1C6B6A;
+  --s0:#E2574E;
+  --s1:#D98A3C;
+  --s2:#BFAE4A;
+  --s3:#57B37C;
+  --s4:#35B9A8;
+  --seal:#35B9A8;
 
-  --p-common:#A81F2B;
-  --p-word:#C2761A;
-  --p-seq:#8A5A2B;
-  --p-repeat:#7A4A86;
-  --p-keys:#2C5F96;
-  --p-date:#77704A;
-  --p-rand:#3F7A57;
+  --p-common:#E2574E;
+  --p-word:#D98A3C;
+  --p-seq:#B3A83F;
+  --p-repeat:#9B7BD4;
+  --p-keys:#5B9BE0;
+  --p-date:#9A8E72;
+  --p-rand:#57B37C;
 
   --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
   --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
-
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{
-  margin:0;
-  background:var(--paper);
-  color:var(--ink);
-  font-family:var(--sans);
-  font-size:16px;
-  line-height:1.5;
+  margin:0;background:var(--ground);color:var(--text);
+  font-family:var(--sans);font-size:16px;line-height:1.5;
   font-feature-settings:"kern","liga";
 }
-.wrap{max-width:920px;margin:0 auto;padding:40px 24px 96px}
+.wrap{max-width:960px;margin:0 auto;padding:0 24px 96px}
 
-/* ---------- masthead ---------- */
-.masthead{display:flex;justify-content:space-between;align-items:baseline;gap:24px;flex-wrap:wrap;margin-bottom:36px}
-h1{font-size:22px;font-weight:600;letter-spacing:-0.01em;margin:0}
-.masthead p{margin:0;color:var(--muted);font-size:13.5px;max-width:38ch}
-
-/* ---------- specimen ---------- */
-.specimen{margin-bottom:8px}
-.field{position:relative;display:flex;align-items:center;gap:12px;
-  background:var(--panel);border:1px solid var(--rule);border-radius:3px;
-  padding:0 12px 0 18px;transition:border-color .12s ease}
-.field:focus-within{border-color:var(--ink)}
-#pw{
-  flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);
-  font-family:var(--mono);font-size:clamp(20px,4.6vw,30px);font-weight:500;
-  letter-spacing:.04em;padding:20px 0;
+/* ================= splash ================= */
+#splash{
+  position:fixed;inset:0;z-index:50;background:var(--ground);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:26px;cursor:pointer;
 }
+#splash.out{opacity:0;pointer-events:none;transition:opacity .5s ease}
+.shield{width:64px;height:76px;display:block}
+.shield path{fill:none;stroke:var(--seal);stroke-width:5;stroke-linejoin:round;
+  stroke-dasharray:360;stroke-dashoffset:360;animation:draw 1.5s ease forwards}
+.shield .tick{stroke-width:6;stroke-linecap:round;stroke-dasharray:60;stroke-dashoffset:60;
+  animation:draw .5s ease .95s forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+#word{
+  font-family:var(--mono);font-size:clamp(26px,7.2vw,54px);font-weight:600;
+  letter-spacing:.16em;display:flex;gap:.04em;
+}
+#word span{display:inline-block;min-width:.62em;text-align:center;color:var(--faint)}
+#word span.set{color:var(--text)}
+#word span.hit{color:var(--seal)}
+.splash-sub{color:var(--muted);font-size:13px;letter-spacing:.02em;min-height:1.2em}
+.bar{width:min(260px,62vw);height:2px;background:var(--rule);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--seal)}
+.skip{position:fixed;bottom:26px;color:var(--faint);font-size:12px;letter-spacing:.02em}
+
+/* ================= top bar ================= */
+.topbar{
+  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  padding:22px 0 18px;border-bottom:1px solid var(--rule);margin-bottom:30px;
+}
+.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
+.brand svg{width:22px;height:26px}
+.brand svg path{fill:none;stroke:var(--seal);stroke-width:5;stroke-linejoin:round}
+.brand b{font-size:17px;font-weight:600;letter-spacing:.01em}
+.tabs{display:flex;gap:2px;background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:2px}
+.tabs button{
+  border:0;background:transparent;color:var(--muted);font:inherit;font-size:13.5px;
+  padding:7px 15px;border-radius:2px;cursor:pointer;
+}
+.tabs button:hover{color:var(--text)}
+.tabs button[aria-selected="true"]{background:var(--raised);color:var(--text)}
+.count{color:var(--faint);font-size:11.5px;margin-left:5px}
+
+/* ================= buttons ================= */
+.btn{
+  border:1px solid var(--rule);background:var(--raised);color:var(--text);
+  font:inherit;font-size:13px;padding:9px 16px;border-radius:3px;cursor:pointer;
+}
+.btn:hover{border-color:var(--faint)}
+.btn-primary{background:var(--seal);border-color:var(--seal);color:#0E1519;font-weight:600}
+.btn-primary:hover{filter:brightness(1.08);border-color:var(--seal)}
+.btn-quiet{background:transparent;color:var(--muted)}
+.btn-quiet:hover{color:var(--text)}
+.btn-danger{background:transparent;border-color:#5A2E2E;color:var(--s0)}
+.btn-danger:hover{border-color:var(--s0)}
+.btn:disabled{opacity:.4;cursor:default}
+button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--seal);outline-offset:2px}
+
+/* ================= panels ================= */
+[role="tabpanel"][hidden]{display:none}
+h2{font-size:14px;font-weight:600;margin:0 0 14px}
+
+/* specimen */
+.field{display:flex;align-items:center;gap:12px;background:var(--panel);
+  border:1px solid var(--rule);border-radius:4px;padding:0 12px 0 18px;transition:border-color .12s}
+.field:focus-within{border-color:var(--seal)}
+#pw{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);
+  font-family:var(--mono);font-size:clamp(19px,4.4vw,29px);font-weight:500;
+  letter-spacing:.04em;padding:20px 0}
 #pw::placeholder{color:var(--faint);letter-spacing:0}
-.field button{
-  flex:none;border:1px solid var(--rule);background:transparent;color:var(--muted);
-  font:inherit;font-size:12.5px;padding:6px 11px;border-radius:2px;cursor:pointer;
-}
-.field button:hover{border-color:var(--ink);color:var(--ink)}
-.field button:focus-visible,#pw:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 
-/* ---------- segment rail ---------- */
-.rail-scroll{overflow-x:auto;overflow-y:hidden;padding:10px 0 2px;margin-bottom:4px}
+.rail-scroll{overflow-x:auto;padding:10px 0 2px;margin-bottom:4px}
 .rail{display:grid;row-gap:5px;width:max-content;min-width:100%}
-.rail .cell{
-  grid-row:1;font-family:var(--mono);font-size:14px;color:var(--muted);
-  text-align:center;line-height:1.2;
-}
-.rail .bar{
-  grid-row:2;height:4px;border-radius:2px;background:var(--seg,var(--muted));
-}
-.rail .tag{
-  grid-row:3;font-size:11px;color:var(--seg,var(--muted));white-space:nowrap;
-  overflow:hidden;text-overflow:clip;line-height:1.3;
-}
+.rail .cell{grid-row:1;font-family:var(--mono);font-size:14px;color:var(--muted);text-align:center;line-height:1.2}
+.rail .bar2{grid-row:2;height:4px;border-radius:2px;background:var(--seg,var(--muted))}
+.rail .tag{grid-row:3;font-size:11px;color:var(--seg,var(--muted));white-space:nowrap;line-height:1.3}
 .rail-empty{height:1px}
 
-/* ---------- verdict ---------- */
 .verdict{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;
   border-top:1px solid var(--rule);padding-top:18px;margin-top:14px}
 .verdict-main{display:flex;align-items:baseline;gap:14px}
-.grade{font-size:26px;font-weight:600;letter-spacing:-.01em;color:var(--grade,var(--muted))}
+.grade{font-size:26px;font-weight:600;color:var(--grade,var(--muted))}
 .grade-sub{font-size:13.5px;color:var(--muted)}
 .readout{font-family:var(--mono);font-size:13px;color:var(--muted);text-align:right}
-.readout b{color:var(--ink);font-weight:600}
-
+.readout b{color:var(--text);font-weight:600}
 .gauge{display:grid;grid-template-columns:repeat(50,1fr);gap:2px;margin-top:16px;height:12px}
 .gauge i{background:var(--rule-soft);border-radius:1px}
 .gauge i.on{background:var(--grade,var(--muted))}
 .gauge-scale{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--faint)}
 
-/* ---------- panels ---------- */
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:40px}
-@media (max-width:720px){.cols{grid-template-columns:1fr;gap:32px}}
-h2{font-size:14px;font-weight:600;margin:0 0 14px;letter-spacing:-.005em}
-
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:38px}
+@media (max-width:760px){.cols{grid-template-columns:1fr;gap:30px}}
 table.cost{width:100%;border-collapse:collapse;font-size:13.5px}
-table.cost th{text-align:left;font-weight:400;color:var(--muted);padding:9px 0;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+table.cost th{text-align:left;font-weight:400;color:var(--muted);padding:9px 0;
+  border-bottom:1px solid var(--rule-soft);vertical-align:top}
 table.cost td{text-align:right;padding:9px 0 9px 12px;border-bottom:1px solid var(--rule-soft);
-  font-family:var(--mono);font-size:13px;white-space:nowrap;vertical-align:top}
+  font-family:var(--mono);font-size:13px;white-space:nowrap}
 table.cost tr:last-child th,table.cost tr:last-child td{border-bottom:0}
 table.cost .hot{color:var(--s0);font-weight:600}
 
 ul.findings{list-style:none;margin:0;padding:0;font-size:13.5px}
-ul.findings li{position:relative;padding:0 0 12px 18px;color:var(--ink)}
+ul.findings li{position:relative;padding:0 0 12px 18px}
 ul.findings li::before{content:"";position:absolute;left:0;top:8px;width:7px;height:7px;
   border-radius:2px;background:var(--seg,var(--muted))}
 ul.findings li span{color:var(--muted)}
-ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--rule-soft);
-  padding:1px 4px;border-radius:2px}
+ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raised);
+  padding:1px 5px;border-radius:2px;color:var(--text)}
 .placeholder{color:var(--faint);font-size:13.5px;margin:0}
 
-/* ---------- generator ---------- */
-.gen{margin-top:48px;border-top:1px solid var(--rule);padding-top:26px}
+/* ---- reaction to a change of band -------------------------------
+   Fires only when the verdict actually changes, not on every keystroke. */
+.field{border-color:var(--edge,var(--rule))}
+.field.fx-alarm{animation:fxShake .42s ease, fxRing .7s ease}
+.field.fx-warn {animation:fxRing .6s ease}
+.field.fx-note {animation:fxRing .5s ease}
+.field.fx-good {animation:fxRing .6s ease}
+.field.fx-seal {animation:fxRing .6s ease, fxRing .6s ease .3s}
+@keyframes fxShake{
+  0%,100%{transform:translateX(0)} 18%{transform:translateX(-6px)}
+  36%{transform:translateX(5px)} 54%{transform:translateX(-4px)}
+  72%{transform:translateX(3px)} 86%{transform:translateX(-1px)}
+}
+@keyframes fxRing{
+  from{box-shadow:0 0 0 0 var(--edge)}
+  to  {box-shadow:0 0 0 13px transparent}
+}
+.grade.pop{animation:fxPop .32s cubic-bezier(.2,1.4,.4,1)}
+@keyframes fxPop{from{transform:scale(.86);opacity:.5}to{transform:none;opacity:1}}
+.gauge.alarm i.on{animation:fxBlink .9s ease-in-out 2}
+@keyframes fxBlink{50%{opacity:.35}}
+
+/* ---- save-to-vault prompt ---- */
+.askvault{margin-top:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--seal);
+  border-radius:4px;padding:14px 16px}
+.ask-text{margin:0;flex:1;min-width:220px;font-size:13.5px}
+.ask-text em{font-style:normal;color:var(--muted)}
+.ask-btns{display:flex;gap:9px}
+
+/* ---- the vault is a different room: black and gold ---- */
+#panelVault{
+  --ground:#0A0A0C;
+  --panel:#121116;
+  --raised:#1A1820;
+  --rule:#2F2820;
+  --rule-soft:#231E18;
+  --text:#F0E8D6;
+  --muted:#9C9280;
+  --faint:#6A6252;
+  --seal:#D4AF37;
+  --s4:#D4AF37;
+  color:var(--text);
+  background:
+    linear-gradient(180deg,rgba(212,175,55,.05) 0%,rgba(212,175,55,0) 140px),
+    radial-gradient(130% 90% at 50% -10%,#16141A 0%,#0A0A0C 62%);
+  border:1px solid #2F2820;
+  border-top:2px solid var(--seal);
+  border-radius:5px;
+  padding:30px 26px 34px;
+}
+#panelVault .btn-primary{color:#17130A}
+#panelVault .btn-danger{border-color:#5A3A2E;color:#E08A6A}
+#panelVault .vault-box{box-shadow:0 1px 0 rgba(212,175,55,.08) inset}
+#panelVault .lockstate{color:var(--seal);letter-spacing:.01em}
+#panelVault .empty{border-color:#2F2820}
+
+/* reuse meter */
+.reuse{display:flex;align-items:center;gap:16px;margin-top:24px;padding:14px 18px;
+  border:1px solid var(--rule);border-radius:4px;background:var(--panel);flex-wrap:wrap}
+.reuse-label{font-size:13px;font-weight:600;flex:none}
+.reuse-meter{display:flex;gap:3px;flex:none}
+.reuse-meter i{width:28px;height:6px;border-radius:2px;background:var(--rule-soft)}
+.reuse-meter i.on{background:var(--rl,var(--muted))}
+.reuse-text{font-size:13px;color:var(--muted);flex:1;min-width:200px}
+.reuse-text b{color:var(--rl,var(--text));font-weight:600}
+
+/* improvements */
+.improve{margin-top:38px;border-top:1px solid var(--rule);padding-top:24px}
+.imp{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--rule-soft)}
+.imp-main{flex:1;min-width:0}
+.imp-lbl{font-size:13px;color:var(--muted);margin-bottom:3px}
+.imp-pw{font-family:var(--mono);font-size:15px;word-break:break-all;line-height:1.4;cursor:pointer}
+.imp-why{font-size:12px;color:var(--faint);margin-top:4px}
+.imp-bits{flex:none;font-family:var(--mono);font-size:12px;color:var(--muted);
+  white-space:nowrap;text-align:right}
+.imp-bits b{color:var(--s4);font-weight:600;display:block}
+@media (max-width:600px){.imp{flex-wrap:wrap}.imp-main{flex-basis:100%}}
+
+/* ---- reaction to a change of band -------------------------------
+   Fires only when the verdict actually changes, not on every keystroke. */
+.field{border-color:var(--edge,var(--rule))}
+.field.fx-alarm{animation:fxShake .42s ease, fxRing .7s ease}
+.field.fx-warn {animation:fxRing .6s ease}
+.field.fx-note {animation:fxRing .5s ease}
+.field.fx-good {animation:fxRing .6s ease}
+.field.fx-seal {animation:fxRing .6s ease, fxRing .6s ease .3s}
+@keyframes fxShake{
+  0%,100%{transform:translateX(0)} 18%{transform:translateX(-6px)}
+  36%{transform:translateX(5px)} 54%{transform:translateX(-4px)}
+  72%{transform:translateX(3px)} 86%{transform:translateX(-1px)}
+}
+@keyframes fxRing{
+  from{box-shadow:0 0 0 0 var(--edge)}
+  to  {box-shadow:0 0 0 13px transparent}
+}
+.grade.pop{animation:fxPop .32s cubic-bezier(.2,1.4,.4,1)}
+@keyframes fxPop{from{transform:scale(.86);opacity:.5}to{transform:none;opacity:1}}
+.gauge.alarm i.on{animation:fxBlink .9s ease-in-out 2}
+@keyframes fxBlink{50%{opacity:.35}}
+
+/* ---- save-to-vault prompt ---- */
+.askvault{margin-top:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--seal);
+  border-radius:4px;padding:14px 16px}
+.ask-text{margin:0;flex:1;min-width:220px;font-size:13.5px}
+.ask-text em{font-style:normal;color:var(--muted)}
+.ask-btns{display:flex;gap:9px}
+
+/* ---- the vault is a different room: black and gold ---- */
+#panelVault{
+  --ground:#0A0A0C;
+  --panel:#121116;
+  --raised:#1A1820;
+  --rule:#2F2820;
+  --rule-soft:#231E18;
+  --text:#F0E8D6;
+  --muted:#9C9280;
+  --faint:#6A6252;
+  --seal:#D4AF37;
+  --s4:#D4AF37;
+  color:var(--text);
+  background:
+    linear-gradient(180deg,rgba(212,175,55,.05) 0%,rgba(212,175,55,0) 140px),
+    radial-gradient(130% 90% at 50% -10%,#16141A 0%,#0A0A0C 62%);
+  border:1px solid #2F2820;
+  border-top:2px solid var(--seal);
+  border-radius:5px;
+  padding:30px 26px 34px;
+}
+#panelVault .btn-primary{color:#17130A}
+#panelVault .btn-danger{border-color:#5A3A2E;color:#E08A6A}
+#panelVault .vault-box{box-shadow:0 1px 0 rgba(212,175,55,.08) inset}
+#panelVault .lockstate{color:var(--seal);letter-spacing:.01em}
+#panelVault .empty{border-color:#2F2820}
+
+/* reuse meter */
+.reuse{margin-top:22px;border:1px solid var(--rule);border-left:3px solid var(--r,var(--muted));
+  border-radius:4px;background:var(--panel);padding:14px 16px}
+.reuse-top{display:flex;align-items:center;gap:12px}
+.reuse-word{font-size:13.5px;font-weight:600;color:var(--r,var(--muted))}
+.reuse-meter{display:flex;gap:3px;margin-left:auto}
+.reuse-meter i{width:26px;height:5px;border-radius:2px;background:var(--rule)}
+.reuse-meter i.on{background:var(--r,var(--muted))}
+.reuse-text{margin:7px 0 0;font-size:13px;color:var(--muted);max-width:76ch}
+
+/* improvement table */
+.fixes{margin-top:38px}
+.fix{display:flex;align-items:baseline;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule-soft)}
+.fix:last-of-type{border-bottom:0}
+.fix .what{flex:1;min-width:0;font-size:13.5px}
+.fix .what em{display:block;font-style:normal;color:var(--faint);font-size:12px;margin-top:2px}
+.fix .delta{font-family:var(--mono);font-size:13px;white-space:nowrap;color:var(--d,var(--muted));
+  min-width:74px;text-align:right}
+.fix .lands{font-size:12.5px;color:var(--muted);white-space:nowrap;min-width:92px;text-align:right}
+
+/* generator */
+.gen{margin-top:44px;border-top:1px solid var(--rule);padding-top:26px}
 .gen-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 20px}
-.seg-toggle{display:inline-flex;border:1px solid var(--rule);border-radius:2px;overflow:hidden}
+.seg-toggle{display:inline-flex;border:1px solid var(--rule);border-radius:3px;overflow:hidden}
 .seg-toggle button{border:0;background:var(--panel);color:var(--muted);font:inherit;font-size:13px;
-  padding:7px 14px;cursor:pointer}
+  padding:8px 15px;cursor:pointer}
 .seg-toggle button+button{border-left:1px solid var(--rule)}
-.seg-toggle button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
-.stepper{display:inline-flex;align-items:center;border:1px solid var(--rule);border-radius:2px;background:var(--panel)}
+.seg-toggle button[aria-pressed="true"]{background:var(--raised);color:var(--text)}
+.stepper{display:inline-flex;align-items:center;border:1px solid var(--rule);border-radius:3px;background:var(--panel)}
 .stepper button{border:0;background:transparent;font:inherit;font-size:15px;color:var(--muted);
-  width:32px;height:33px;cursor:pointer;line-height:1}
-.stepper button:hover:not(:disabled){color:var(--ink)}
+  width:34px;height:35px;cursor:pointer;line-height:1}
+.stepper button:hover:not(:disabled){color:var(--text)}
 .stepper button:disabled{opacity:.3;cursor:default}
-.stepper span{font-size:13px;padding:0 4px;min-width:104px;text-align:center;color:var(--ink)}
+.stepper span{font-size:13px;padding:0 6px;min-width:104px;text-align:center}
 .opts{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
 .opts label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
-.opts input{accent-color:var(--ink);margin:0}
-.reroll{border:1px solid var(--ink);background:var(--ink);color:var(--paper);font:inherit;font-size:13px;
-  padding:8px 16px;border-radius:2px;cursor:pointer}
-.reroll:hover{background:#000}
-
+.opts input{accent-color:var(--seal);margin:0}
 .suggestions{border-top:1px solid var(--rule-soft)}
-.pool-note{margin:14px 0 0;font-size:12.5px;color:var(--muted);max-width:70ch}
-.sug{display:flex;align-items:center;gap:16px;padding:13px 0;border-bottom:1px solid var(--rule-soft)}
-.sug-pw{flex:1;min-width:0;font-family:var(--mono);font-size:15.5px;word-break:break-all;line-height:1.4}
-.sug-bits{flex:none;font-family:var(--mono);font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}
-.copy{flex:none;border:1px solid var(--rule);background:transparent;color:var(--muted);font:inherit;
-  font-size:12.5px;padding:6px 12px;border-radius:2px;cursor:pointer;min-width:74px}
-.copy:hover{border-color:var(--ink);color:var(--ink)}
-.copy.done{border-color:var(--s4);color:var(--s4)}
-@media (max-width:560px){
-  .sug{flex-wrap:wrap;gap:8px}
-  .sug-pw{flex-basis:100%}
-  .sug-bits{flex:1;text-align:left}
-}
+.sug{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--rule-soft)}
+.sug-pw{flex:1;min-width:0;font-family:var(--mono);font-size:15.5px;word-break:break-all;
+  line-height:1.4;cursor:pointer}
+.sug-bits{flex:none;font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
+.mini{border:1px solid var(--rule);background:transparent;color:var(--muted);font:inherit;
+  font-size:12.5px;padding:6px 12px;border-radius:3px;cursor:pointer;flex:none}
+.mini:hover{border-color:var(--faint);color:var(--text)}
+.mini.done{border-color:var(--s4);color:var(--s4)}
+@media (max-width:600px){.sug{flex-wrap:wrap;gap:8px}.sug-pw{flex-basis:100%}.sug-bits{flex:1}}
+.pool-note{margin:14px 0 0;font-size:12.5px;color:var(--muted);max-width:72ch}
 
-button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
-.note{margin-top:40px;padding-top:18px;border-top:1px solid var(--rule);
-  font-size:12.5px;color:var(--faint);max-width:66ch}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+/* ================= history ================= */
+.hist-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.hist{border-top:1px solid var(--rule-soft)}
+.hrow{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule-soft)}
+.hrow .pw{flex:1;min-width:0;font-family:var(--mono);font-size:14px;word-break:break-all}
+.hrow .band{font-size:12px;color:var(--b,var(--muted));white-space:nowrap;min-width:76px}
+.hrow .sc{font-family:var(--mono);font-size:12.5px;color:var(--muted);white-space:nowrap;min-width:58px;text-align:right}
+.hrow .tm{font-size:11.5px;color:var(--faint);white-space:nowrap}
+.empty{border:1px dashed var(--rule);border-radius:4px;padding:30px 24px;text-align:center;color:var(--muted);font-size:13.5px}
+.empty b{display:block;color:var(--text);font-weight:600;margin-bottom:6px;font-size:14.5px}
+
+/* ================= vault ================= */
+.vault-box{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:26px;max-width:520px}
+.vault-box h3{margin:0 0 8px;font-size:16px;font-weight:600}
+.vault-box p{margin:0 0 18px;color:var(--muted);font-size:13.5px}
+.tin{width:100%;background:var(--ground);border:1px solid var(--rule);border-radius:3px;
+  color:var(--text);font:inherit;font-size:14px;padding:11px 13px;margin-bottom:10px}
+.tin:focus{outline:2px solid var(--seal);outline-offset:-1px;border-color:transparent}
+.row-btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.msg{font-size:13px;margin:12px 0 0;min-height:1.2em}
+.msg.err{color:var(--s0)}
+.msg.ok{color:var(--s4)}
+.msg.busy{color:var(--muted)}
+.vault-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.lockstate{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--s4)}
+.lockstate svg{width:13px;height:15px}
+.lockstate svg path{fill:none;stroke:currentColor;stroke-width:5;stroke-linejoin:round}
+.entries{border-top:1px solid var(--rule-soft)}
+.entry{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--rule-soft)}
+.entry .who{flex:1;min-width:0}
+.entry .lbl{font-size:14px}
+.entry .usr{font-size:12px;color:var(--muted)}
+.entry .secret{font-family:var(--mono);font-size:13.5px;color:var(--muted);
+  word-break:break-all;min-width:110px}
+.addform{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:20px;margin-top:22px}
+.addform h3{margin:0 0 14px;font-size:14px;font-weight:600}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media (max-width:600px){.grid2{grid-template-columns:1fr}}
+
+.note{margin-top:44px;padding-top:18px;border-top:1px solid var(--rule);
+  font-size:12.5px;color:var(--faint);max-width:74ch}
+.note b{color:var(--muted);font-weight:600}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation-duration:.01ms!important}}
 </style>
 </head>
 <body>
-<div class="wrap">
 
-  <header class="masthead">
-    <h1>CyberShield</h1>
-    <p>Password strength analysis. Type a password to see how a real
-     attacker would take it apart.</p>
+<div id="splash" role="status" aria-label="CyberShield loading">
+  <svg class="shield" viewBox="0 0 100 120" aria-hidden="true">
+    <path d="M50 6 L92 22 V60 C92 88 72 106 50 114 C28 106 8 88 8 60 V22 Z"/>
+    <path class="tick" d="M32 60 L45 74 L70 44"/>
+  </svg>
+  <div id="word" aria-hidden="true"></div>
+  <div class="splash-sub" id="splashSub"></div>
+  <div class="bar"><i id="barFill"></i></div>
+  <div class="skip">Press any key to skip</div>
+</div>
+
+<div class="wrap" id="app" hidden>
+
+  <header class="topbar">
+    <span class="brand">
+      <svg viewBox="0 0 100 120" aria-hidden="true">
+        <path d="M50 6 L92 22 V60 C92 88 72 106 50 114 C28 106 8 88 8 60 V22 Z"/>
+      </svg>
+      <b>CyberShield</b>
+    </span>
+    <div class="tabs" role="tablist">
+      <button role="tab" id="tabAnalyse" aria-selected="true" aria-controls="panelAnalyse">Analyse</button>
+      <button role="tab" id="tabHistory" aria-selected="false" aria-controls="panelHistory">History<span class="count" id="histCount"></span></button>
+      <button role="tab" id="tabVault" aria-selected="false" aria-controls="panelVault">Vault</button>
+    </div>
   </header>
 
-  <section class="specimen">
+  <!-- ================= ANALYSE ================= -->
+  <section role="tabpanel" id="panelAnalyse" aria-labelledby="tabAnalyse">
     <div class="field">
       <input id="pw" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
-             spellcheck="false" placeholder="Start typing…" aria-label="Password to analyze">
-      <button id="mask" type="button" aria-pressed="false">Hide</button>
+             spellcheck="false" placeholder="Start typing…" aria-label="Password to analyse">
+      <button class="mini" id="mask" type="button" aria-pressed="false">Hide</button>
     </div>
 
     <div class="rail-scroll"><div class="rail" id="rail"><div class="rail-empty"></div></div></div>
@@ -188,59 +429,96 @@ button:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
       </div>
       <div class="readout" id="readout"></div>
     </div>
-
     <div class="gauge" id="gauge" role="img" aria-label="Strength score"></div>
     <div class="gauge-scale"><span>trivial</span><span>weak</span><span>fair</span><span>strong</span><span>excellent</span></div>
-  </section>
 
-  <div class="cols">
-    <section>
-      <h2>Time to guess it</h2>
-      <table class="cost">
-        <tbody id="costs">
-          <tr><th>Guessing on a login form, rate-limited</th><td>—</td></tr>
-          <tr><th>Guessing on a login form, no limits</th><td>—</td></tr>
-          <tr><th>Stolen database, slow hashing</th><td>—</td></tr>
-          <tr><th>Stolen database, fast hashing on GPUs</th><td>—</td></tr>
-        </tbody>
-      </table>
-    </section>
-
-    <section>
-      <h2>What the analysis found</h2>
-      <ul class="findings" id="findings"></ul>
-      <p class="placeholder" id="findingsEmpty">Findings appear as you type.</p>
-    </section>
-  </div>
-
-  <section class="gen">
-    <div class="gen-head">
-      <h2 style="margin:0">Make a strong one</h2>
-      <button class="reroll" id="reroll" type="button">New set</button>
+    <div class="reuse" id="reuse" hidden>
+      <div class="reuse-top">
+        <span class="reuse-word" id="reuseWord"></span>
+        <span class="reuse-meter" id="reuseMeter"></span>
+      </div>
+      <p class="reuse-text" id="reuseText"></p>
     </div>
 
-    <div class="controls">
-      <span class="seg-toggle" role="group" aria-label="Password style">
-        <button id="modePhrase" type="button" aria-pressed="true">Words</button>
-        <button id="modeChars" type="button" aria-pressed="false">Characters</button>
-      </span>
-      <span class="stepper">
-        <button id="minus" type="button" aria-label="Fewer">−</button>
-        <span id="lenLabel">6 words</span>
-        <button id="plus" type="button" aria-label="More">+</button>
-      </span>
-      <span class="opts" id="opts"></span>
+    <div class="askvault" id="askVault" hidden>
+      <p class="ask-text" id="askText"></p>
+      <div class="ask-btns">
+        <button class="btn btn-primary" id="askYes" type="button">Yes, save it</button>
+        <button class="btn btn-quiet" id="askNo" type="button">No thanks</button>
+      </div>
     </div>
 
-    <div class="suggestions" id="suggestions"></div>
-    <p class="pool-note" id="poolNote"></p>
+    <div class="reuse" id="reuse" hidden>
+      <span class="reuse-label">Reuse</span>
+      <span class="reuse-meter" id="reuseMeter"></span>
+      <span class="reuse-text" id="reuseText"></span>
+    </div>
+
+    <div class="cols">
+      <section>
+        <h2>Time to guess it</h2>
+        <table class="cost"><tbody id="costs"></tbody></table>
+      </section>
+      <section>
+        <h2>What the analysis found</h2>
+        <ul class="findings" id="findings"></ul>
+        <p class="placeholder" id="findingsEmpty">Findings appear as you type.</p>
+      </section>
+    </div>
+
+
+    <section class="fixes" id="fixes" hidden>
+      <h2>What each change would actually buy you</h2>
+      <div id="fixList"></div>
+      <p class="pool-note">Measured by running each version back through the analyser, not
+        estimated. Patching the password you already have is usually worth a few bits; the
+        weak part stays weak because guessers try those edits first.</p>
+    </section>
+
+    <section class="gen">
+      <div class="gen-head">
+        <h2 style="margin:0">Make a strong one</h2>
+        <button class="btn btn-primary" id="reroll" type="button">New set</button>
+      </div>
+      <div class="controls">
+        <span class="seg-toggle" role="group" aria-label="Password style">
+          <button id="modePhrase" type="button" aria-pressed="true">Words</button>
+          <button id="modeChars" type="button" aria-pressed="false">Characters</button>
+        </span>
+        <span class="stepper">
+          <button id="minus" type="button" aria-label="Fewer">−</button>
+          <span id="lenLabel">7 words</span>
+          <button id="plus" type="button" aria-label="More">+</button>
+        </span>
+        <span class="opts" id="opts"></span>
+      </div>
+      <div class="suggestions" id="suggestions"></div>
+      <p class="pool-note" id="poolNote"></p>
+    </section>
   </section>
 
-  <p class="note">Everything runs in this page. Nothing you type is sent anywhere, stored, or logged — you can
-  disconnect from the network and it still works. Suggestions use your browser's cryptographic random
-  number generator.</p>
+  <!-- ================= HISTORY ================= -->
+  <section role="tabpanel" id="panelHistory" aria-labelledby="tabHistory" hidden>
+    <div class="hist-head">
+      <h2 style="margin:0">Checked this session</h2>
+      <div class="row-btns">
+        <button class="btn btn-quiet" id="histReveal" type="button" aria-pressed="false">Reveal</button>
+        <button class="btn btn-danger" id="histClear" type="button">Clear</button>
+      </div>
+    </div>
+    <div class="hist" id="histList"></div>
+    <p class="pool-note">Kept in memory only, and gone when you close the tab. Nothing here is written
+      to disk — if you want a password kept, save it to the vault, where it is encrypted.</p>
+  </section>
 
+  <!-- ================= VAULT ================= -->
+  <section role="tabpanel" id="panelVault" aria-labelledby="tabVault" hidden>
+    <div id="vaultView"></div>
+  </section>
+
+  <p class="note" id="privacyNote"></p>
 </div>
+
 <script>
 /* ============================================================
    Password strength engine
@@ -846,21 +1124,509 @@ function makePassphrase(count, opts) {
   return { text, bits };
 }
 
+const CHAR_SETS = {
+  lower: "abcdefghijkmnopqrstuvwxyz",   // no l
+  upper: "ABCDEFGHJKLMNPQRSTUVWXYZ",    // no I, O
+  digits: "23456789",                   // no 0, 1
+  symbols: "!@#$%^&*-_=+?"
+};
+
+const SET_ORDER = Object.keys(CHAR_SETS);
+
+function charPool(opts) {
+  return Object.keys(CHAR_SETS).filter(k => opts[k]).map(k => CHAR_SETS[k]).join("");
+}
+
 function makeCharacters(len, opts) {
-  let pool = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ";
-  if (opts.digits) pool += "23456789";
-  if (opts.symbols) pool += "!@#$%^&*-_=+?";
-  const text = Array.from({ length: len }, () => pool[randInt(pool.length)]).join("");
-  return { text, bits: len * Math.log2(pool.length) };
+  const chosen = Object.keys(CHAR_SETS).filter(k => opts[k]);
+  const pool = charPool(opts);
+  if (!pool) return { text: "", bits: 0 };
+  // Guarantee one character from each selected set, for sites that demand it.
+  const out = chosen.slice(0, len).map(k => CHAR_SETS[k][randInt(CHAR_SETS[k].length)]);
+  while (out.length < len) out.push(pool[randInt(pool.length)]);
+  for (let i = out.length - 1; i > 0; i--) {           // Fisher-Yates, unbiased
+    const j = randInt(i + 1);
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return { text: out.join(""), bits: len * Math.log2(pool.length) };
 }
 
 /* ============================================================
-   Rendering
+   Reuse detection — against the user's own passwords only.
+   ============================================================ */
+function levenshtein(a, b) {
+  if (a === b) return 0;
+  a = a.slice(0, 64); b = b.slice(0, 64);
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, i) => i), cur = new Array(n + 1);
+  for (let i = 1; i <= m; i++) {
+    cur[0] = i;
+    for (let j = 1; j <= n; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    [prev, cur] = [cur, prev];
+  }
+  return prev[n];
+}
+
+const similarity = (a, b) => 1 - levenshtein(a, b) / Math.max(a.length, b.length, 1);
+
+/* "Summer2024!" and "Summer2025!" share a stem; that is the commonest
+   kind of reuse and the one users least expect to be caught. */
+const stemOf = s => s.toLowerCase().replace(/[^a-z]+$/, "").replace(/^[^a-z]+/, "");
+
+function reuseCheck(pw, sources) {
+  const exact = [], near = [];
+  const stem = stemOf(pw);
+  for (const s of sources) {
+    if (!s.password || s.password === "") continue;
+    if (s.password === pw) { exact.push(s.label); continue; }
+    const sameStem = stem.length >= 4 && stemOf(s.password) === stem;
+    if (sameStem || similarity(pw, s.password) >= 0.7) near.push(s.label);
+  }
+  const level = exact.length ? "reused" : near.length ? "variant" : "unique";
+  return { level, exact, near };
+}
+
+/* ============================================================
+   Reuse detection
+
+   Two separate questions, both worth answering:
+     - has this password (or a near-twin) been used elsewhere by you?
+     - is it a password used by everyone, i.e. already in the lists?
+
+   Everything is compared locally against the vault (when unlocked)
+   and this session's history. Nothing is sent anywhere.
+   ============================================================ */
+
+/* Strip a password down to the part a person actually chose: lowercase,
+   de-leeted, with the trailing digits and punctuation people bolt on. */
+function reuseBase(pw) {
+  let s = pw.toLowerCase();
+  // Order matters: strip the digits and punctuation people bolt on first, or
+  // de-leeting turns them into letters and they never come off.
+  s = s.replace(/[^a-z]+$/, "").replace(/^[^a-z]+/, "");
+  s = [...s].map(c => LEET[c] || c).join("");
+  return s.replace(/[^a-z]+$/, "");
+}
+
+/* Bounded edit distance — we only care whether two strings are close. */
+function editDistance(a, b, cap = 4) {
+  if (Math.abs(a.length - b.length) > cap) return cap + 1;
+  let prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    let best = i;
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (cur[j] < best) best = cur[j];
+    }
+    if (best > cap) return cap + 1;
+    prev = cur;
+  }
+  return prev[b.length];
+}
+
+const REUSE_LEVELS = [
+  { on: 0, color: "var(--s4)", word: "Not seen elsewhere" },
+  { on: 2, color: "var(--s2)", word: "Close to another" },
+  { on: 3, color: "var(--s1)", word: "Reworked from another" },
+  { on: 4, color: "var(--s0)", word: "Already in use" }
+];
+
+/* corpus: [{ pw, where }] */
+function reuseScan(pw, corpus) {
+  const out = { level: 0, exact: [], variant: [], similar: [], globalRank: null, checkedVault: false };
+  if (!pw) return out;
+
+  const rank = RANK_COMMON.get(pw.toLowerCase());
+  if (rank) out.globalRank = rank;
+
+  const base = reuseBase(pw);
+  const seen = new Set();
+  for (const item of corpus) {
+    if (item.pw === pw) { if (!seen.has(item.where)) { out.exact.push(item.where); seen.add(item.where); } continue; }
+    const b = reuseBase(item.pw);
+    if (base && b && base === b) { out.variant.push(item.where); continue; }
+    if (base.length >= 4 && b.length >= 4 && editDistance(base, b) <= 2) out.similar.push(item.where);
+  }
+  // A named vault entry is more informative than "checked earlier", so when both
+  // turn up for the same password, only name the vault.
+  const prefer = names => {
+    const named = names.filter(n => n !== "checked earlier");
+    return named.length ? named : names;
+  };
+  out.exact = prefer(out.exact);
+  out.variant = prefer(out.variant);
+  out.similar = prefer(out.similar);
+  out.level = out.exact.length ? 3 : out.variant.length ? 2 : out.similar.length ? 1 : 0;
+  return out;
+}
+
+function reuseSentence(r) {
+  const list = names => names.slice(0, 3).join(", ") + (names.length > 3 ? ` and ${names.length - 3} more` : "");
+  if (r.exact.length)
+    return `The same password is already saved for ${list(r.exact)}. One breach at any of them hands an attacker the rest — this is what credential stuffing is.`;
+  if (r.variant.length)
+    return `This is the same password as ${list(r.variant)} with the ending changed. Cracking tools try those endings automatically, so it counts as the same password.`;
+  if (r.similar.length)
+    return `This is within a couple of characters of ${list(r.similar)}. Anyone who has one can reach the other by guessing a few variations.`;
+  return `No match against anything you have checked this session.`;
+}
+
+/* ============================================================
+   Improvement suggestions, measured rather than asserted
+   ============================================================ */
+function randomChars(n) {
+  const pool = "abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*";
+  return Array.from({ length: n }, () => pool[randInt(pool.length)]).join("");
+}
+
+function improvements(pw, a) {
+  if (!pw || !HAS_CRYPTO) return [];
+  const here = a.bits;
+  const out = [];
+  const weak = a.segments.filter(s => s.type !== "rand").sort((x, y) => x.bits - y.bits)[0];
+
+  // The two habits people actually reach for.
+  out.push({
+    label: "Add a digit and a symbol on the end",
+    bits: analyze(pw + "7!").bits - here,
+    note: "the move almost everyone makes"
+  });
+  if (weak) {
+    const swapped = pw.slice(0, weak.i) + randomChars(weak.token.length) + pw.slice(weak.j + 1);
+    out.push({
+      label: `Replace “${weak.token}” with unrelated characters`,
+      bits: analyze(swapped).bits - here,
+      note: "removes the part that is doing the damage"
+    });
+  }
+  out.push({
+    label: "Add four unpredictable characters",
+    bits: analyze(pw + randomChars(4)).bits - here,
+    note: "length, but built on the same base"
+  });
+  out.push({
+    label: "Start again with a generated passphrase",
+    bits: makePassphrase(7, { digit: true, caps: false }).bits - here,
+    note: "nothing carried over from the old one",
+    fresh: true
+  });
+  return out.map(o => ({ ...o, total: here + o.bits }));
+}
+
+/* ============================================================
+   Vault — local encrypted storage for saved passwords.
+
+   Envelope scheme:
+     DEK  random AES-256 key; encrypts the vault contents
+     KEK  derived from the master password (PBKDF2-SHA256, 600k)
+          or from a WebAuthn PRF output, if the device supports it
+     The DEK is stored twice, wrapped once by each available KEK.
+
+   The master password is never stored. The DEK never leaves memory
+   unwrapped. Wrong password fails AES-GCM authentication, so there
+   is no separate "password check" to bypass.
+   ============================================================ */
+
+const KDF_ITER = 600000;
+const STORE_KEY = "cybershield.vault.v1";
+const PRF_SALT = new TextEncoder().encode("cybershield/prf/v1");
+
+const te = new TextEncoder(), td = new TextDecoder();
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const rand = n => crypto.getRandomValues(new Uint8Array(n));
+
+/* WebCrypto's subtle API only exists in a secure context (https or localhost). */
+function subtleAvailable() {
+  return typeof crypto !== "undefined" && !!crypto.subtle;
+}
+
+/* ---- storage (guarded: previews and private modes may refuse) ---- */
+function storageAvailable() {
+  try {
+    const k = "__cs_probe__";
+    localStorage.setItem(k, "1");
+    localStorage.removeItem(k);
+    return true;
+  } catch { return false; }
+}
+const loadRaw = () => {
+  try { const s = localStorage.getItem(STORE_KEY); return s ? JSON.parse(s) : null; }
+  catch { return null; }
+};
+const saveRaw = obj => {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(obj)); return true; }
+  catch { return false; }
+};
+const wipeRaw = () => { try { localStorage.removeItem(STORE_KEY); } catch {} };
+
+/* ---- key material ---- */
+async function kekFromPassword(password, salt, iterations = KDF_ITER) {
+  const base = await crypto.subtle.importKey("raw", te.encode(password), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "PBKDF2", salt, iterations, hash: "SHA-256" },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+async function kekFromPrf(prfOutput) {
+  const base = await crypto.subtle.importKey("raw", new Uint8Array(prfOutput), "HKDF", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey(
+    { name: "HKDF", hash: "SHA-256", salt: new Uint8Array(0), info: te.encode("cybershield-dek-wrap") },
+    base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+}
+
+const newDek = () => crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+
+async function wrap(kek, dek) {
+  const raw = await crypto.subtle.exportKey("raw", dek);
+  const iv = rand(12);
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, raw);
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function unwrap(kek, blob) {
+  const raw = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(blob.iv) }, kek, unb64(blob.ct));
+  return crypto.subtle.importKey("raw", raw, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+}
+
+async function sealData(dek, entries) {
+  const iv = rand(12);
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, dek, te.encode(JSON.stringify(entries)));
+  return { iv: b64(iv), ct: b64(ct) };
+}
+async function openData(dek, blob) {
+  const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(blob.iv) }, dek, unb64(blob.ct));
+  return JSON.parse(td.decode(pt));
+}
+
+/* ---- WebAuthn PRF ----------------------------------------------
+   PRF is what makes biometric unlock real: the authenticator returns
+   a stable secret that never leaves it, and we derive a key from that.
+   Without PRF a fingerprint prompt would only hide the UI while the
+   data sat readable, so we refuse to offer it.
+------------------------------------------------------------------ */
+async function platformAuthenticator() {
+  try {
+    return !!(window.PublicKeyCredential &&
+      await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable());
+  } catch { return false; }
+}
+
+async function enrolPrf() {
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      challenge: rand(32),
+      rp: { name: "CyberShield" },
+      user: { id: rand(16), name: "vault", displayName: "CyberShield vault" },
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: {
+        authenticatorAttachment: "platform",
+        userVerification: "required",
+        residentKey: "required"
+      },
+      timeout: 60000,
+      extensions: { prf: {} }
+    }
+  });
+  if (!cred) throw new Error("cancelled");
+  const ext = cred.getClientExtensionResults();
+  if (!ext.prf || ext.prf.enabled !== true) {
+    throw new Error("no-prf");
+  }
+  return b64(cred.rawId);
+}
+
+async function prfSecret(credIdB64) {
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge: rand(32),
+      allowCredentials: [{ type: "public-key", id: unb64(credIdB64) }],
+      userVerification: "required",
+      timeout: 60000,
+      extensions: { prf: { eval: { first: PRF_SALT } } }
+    }
+  });
+  if (!assertion) throw new Error("cancelled");
+  const res = assertion.getClientExtensionResults();
+  const out = res.prf && res.prf.results && res.prf.results.first;
+  if (!out) throw new Error("no-prf");
+  return out;
+}
+
+/* ---- public surface ---- */
+const Vault = {
+  dek: null,
+  entries: [],
+
+  exists() { return !!loadRaw(); },
+  biometricEnrolled() { const r = loadRaw(); return !!(r && r.bio); },
+  get locked() { return this.dek === null; },
+
+  async create(masterPassword) {
+    const salt = rand(16);
+    const dek = await newDek();
+    const kek = await kekFromPassword(masterPassword, salt);
+    const rec = {
+      v: 1,
+      kdf: { name: "PBKDF2-SHA256", iter: KDF_ITER, salt: b64(salt) },
+      pw: await wrap(kek, dek),
+      bio: null,
+      data: await sealData(dek, [])
+    };
+    if (!saveRaw(rec)) throw new Error("storage");
+    this.dek = dek;
+    this.entries = [];
+  },
+
+  async unlock(masterPassword) {
+    const rec = loadRaw();
+    if (!rec) throw new Error("missing");
+    const kek = await kekFromPassword(masterPassword, unb64(rec.kdf.salt), rec.kdf.iter);
+    let dek;
+    try { dek = await unwrap(kek, rec.pw); }
+    catch { throw new Error("bad-password"); }
+    this.dek = dek;
+    this.entries = await openData(dek, rec.data);
+  },
+
+  async unlockBiometric() {
+    const rec = loadRaw();
+    if (!rec || !rec.bio) throw new Error("no-bio");
+    const secret = await prfSecret(rec.bio.credId);
+    const kek = await kekFromPrf(secret);
+    let dek;
+    try { dek = await unwrap(kek, rec.bio.wrapped); }
+    catch { throw new Error("bad-bio"); }
+    this.dek = dek;
+    this.entries = await openData(dek, rec.data);
+  },
+
+  async enableBiometric() {
+    if (this.locked) throw new Error("locked");
+    const rec = loadRaw();
+    const credId = await enrolPrf();
+    const secret = await prfSecret(credId);
+    const kek = await kekFromPrf(secret);
+    rec.bio = { credId, wrapped: await wrap(kek, this.dek) };
+    saveRaw(rec);
+  },
+
+  disableBiometric() {
+    const rec = loadRaw();
+    if (rec) { rec.bio = null; saveRaw(rec); }
+  },
+
+  async persist() {
+    if (this.locked) throw new Error("locked");
+    const rec = loadRaw();
+    rec.data = await sealData(this.dek, this.entries);
+    saveRaw(rec);
+  },
+
+  async add(entry) {
+    this.entries.unshift({ id: b64(rand(8)), created: Date.now(), ...entry });
+    await this.persist();
+  },
+
+  async remove(id) {
+    this.entries = this.entries.filter(e => e.id !== id);
+    await this.persist();
+  },
+
+  lock() { this.dek = null; this.entries = []; },
+
+  destroy() { wipeRaw(); this.lock(); }
+};
+
+/* ============================================================
+   Interface
    ============================================================ */
 const $ = id => document.getElementById(id);
-const esc = c => c === " " ? "␣" : ({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;" }[c] || c);
-const GRADE_COLOR = ["var(--s0)","var(--s1)","var(--s2)","var(--s3)","var(--s4)"];
+const esc = c => c === " " ? "␣" : ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c] || c);
+const escAll = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const GRADE_COLOR = ["var(--s0)", "var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
+const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/* ---------------- splash ---------------- */
+const WORDMARK = "CYBERSHIELD";
+const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&@!?";
+const SPLASH_MS = 4600;              // total time on screen
+
+function runSplash(done) {
+  const splash = $("splash"), word = $("word"), sub = $("splashSub"), fill = $("barFill");
+  const cells = [...WORDMARK].map(ch => {
+    const s = document.createElement("span");
+    s.textContent = ch;
+    word.appendChild(s);
+    return { el: s, ch };
+  });
+
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    clearInterval(scramble);
+    clearTimeout(endTimer);
+    splash.classList.add("out");
+    setTimeout(() => { splash.remove(); done(); }, reduced ? 0 : 500);
+    window.removeEventListener("keydown", finish);
+    splash.removeEventListener("click", finish);
+  };
+  window.addEventListener("keydown", finish);
+  splash.addEventListener("click", finish);
+
+  if (reduced) {
+    cells.forEach(c => { c.el.textContent = c.ch; c.el.classList.add("set"); });
+    sub.textContent = "Password strength analysis";
+    fill.style.width = "100%";
+    setTimeout(finish, 1200);
+    return;
+  }
+
+  // Each character settles in turn, the rest keep churning: a password
+  // resolving under attack, which is what the tool is about.
+  const lockStep = 150, startAt = 700;
+  let locked = 0;
+  const scramble = setInterval(() => {
+    cells.forEach((c, i) => {
+      if (i < locked) return;
+      c.el.textContent = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+    });
+  }, 45);
+
+  cells.forEach((c, i) => setTimeout(() => {
+    c.el.textContent = c.ch;
+    c.el.classList.add("set", "hit");
+    setTimeout(() => c.el.classList.remove("hit"), 260);
+    locked = i + 1;
+  }, startAt + i * lockStep));
+
+  const tagline = startAt + cells.length * lockStep + 120;
+  setTimeout(() => { sub.textContent = "Password strength analysis"; }, tagline);
+
+  fill.style.transition = `width ${SPLASH_MS - 400}ms linear`;
+  requestAnimationFrame(() => { fill.style.width = "100%"; });
+  const endTimer = setTimeout(finish, SPLASH_MS);
+}
+
+/* ---------------- tabs ---------------- */
+const TABS = [["tabAnalyse", "panelAnalyse"], ["tabHistory", "panelHistory"], ["tabVault", "panelVault"]];
+function showTab(id) {
+  TABS.forEach(([t, p]) => {
+    const on = t === id;
+    $(t).setAttribute("aria-selected", String(on));
+    $(p).hidden = !on;
+  });
+  if (id === "tabHistory") renderHistory();
+  if (id === "tabVault") renderVault();
+}
+TABS.forEach(([t]) => $(t).addEventListener("click", () => showTab(t)));
+
+/* ---------------- analyse ---------------- */
 let masked = false;
 
 function renderRail(a) {
@@ -872,16 +1638,14 @@ function renderRail(a) {
   let html = "";
   for (let k = 0; k < n; k++) {
     const code = a.pw.codePointAt(k);
-    const wide = code > 0xFFFF;                      // surrogate pair: draw once, skip its tail
     const low = k > 0 && a.pw.charCodeAt(k) >= 0xDC00 && a.pw.charCodeAt(k) <= 0xDFFF;
-    const glyph = masked ? "•" : low ? "" : wide ? String.fromCodePoint(code) : esc(a.pw[k]);
+    const glyph = masked ? "•" : low ? "" : code > 0xFFFF ? String.fromCodePoint(code) : esc(a.pw[k]);
     html += `<div class="cell" style="grid-column:${k + 1};font-size:${Math.min(cell - 6, 15)}px">${glyph}</div>`;
   }
   for (const s of a.segments) {
     const color = SEG_COLOR[s.type], label = SEG_LABEL[s.type];
-    const width = (s.j - s.i + 1) * cell;
-    const col = `grid-column:${s.i + 1}/${s.j + 2}`;
-    html += `<div class="bar" style="${col};--seg:${color}"></div>`;
+    const width = (s.j - s.i + 1) * cell, col = `grid-column:${s.i + 1}/${s.j + 2}`;
+    html += `<div class="bar2" style="${col};--seg:${color}"></div>`;
     html += `<div class="tag" style="${col};--seg:${color}">${width >= label.length * 5.8 ? label : ""}</div>`;
   }
   rail.innerHTML = html;
@@ -896,37 +1660,167 @@ function renderVerdict(a) {
     $("readout").innerHTML = "";
     gauge.innerHTML = Array.from({ length: 50 }, () => "<i></i>").join("");
     gauge.removeAttribute("style");
+    playBandEffect(null);
     $("costs").innerHTML = SCENARIOS.map(s => `<tr><th>${s.label}</th><td>—</td></tr>`).join("");
     $("findings").innerHTML = "";
     $("findingsEmpty").style.display = "";
     return;
   }
-  const b = band(a.bits), sc = score(a.bits), idx = BANDS.indexOf(b);
-  const color = GRADE_COLOR[idx];
-
+  const b = band(a.bits), sc = score(a.bits), bi = BANDS.indexOf(b), color = GRADE_COLOR[bi];
+  playBandEffect(bi);
   $("grade").textContent = b.name;
   $("grade").style.setProperty("--grade", color);
   $("gradeSub").textContent = b.sub;
   $("readout").innerHTML = `<b>${sc}</b>/100 &nbsp; ${a.bits.toFixed(1)} bits`;
-
   gauge.style.setProperty("--grade", color);
   const on = Math.round(sc / 2);
   gauge.innerHTML = Array.from({ length: 50 }, (_, i) => `<i class="${i < on ? "on" : ""}"></i>`).join("");
   gauge.setAttribute("aria-label", `Strength ${sc} out of 100, rated ${b.name}`);
-
   $("costs").innerHTML = crackTimes(a.bits)
     .map(c => `<tr><th>${c.label}</th><td class="${c.instant ? "hot" : ""}">${c.text}</td></tr>`).join("");
-
   const f = findings(a);
   $("findings").innerHTML = f.map(x => `<li style="--seg:${SEG_COLOR[x.type]}">${x.text}</li>`).join("");
   $("findingsEmpty").style.display = f.length ? "none" : "";
 }
 
+/* ---------------- reuse ---------------- */
+const REUSE_COLOR = { unique: "var(--s4)", variant: "var(--s1)", reused: "var(--s0)" };
+const REUSE_CELLS = { unique: 1, variant: 2, reused: 3 };
+
+const askDismissed = new Set();
+
+function renderAsk(pw, a) {
+  const box = $("askVault");
+  if (!pw || pw.length < 6 || askDismissed.has(pw) || !subtleAvailable() || !storageAvailable()) {
+    box.hidden = true;
+    return;
+  }
+  const sc = score(a.bits), strong = a.bits >= 56;
+  box.hidden = false;
+  $("askText").innerHTML = strong
+    ? `Strong enough to keep. Save it to your vault?`
+    : `Save this to your vault? <em>It scored ${sc} out of 100 — worth replacing before you
+       rely on it, but it is your call.</em>`;
+}
+
+$("askYes").addEventListener("click", () => {
+  pendingSave = $("pw").value;
+  $("askVault").hidden = true;
+  showTab("tabVault");
+  if (Vault.locked) {
+    setMsg(Vault.exists()
+      ? "Unlock the vault and the password will be waiting in the form."
+      : "Set up your vault and the password will be waiting in the form.");
+  }
+});
+$("askNo").addEventListener("click", () => {
+  askDismissed.add($("pw").value);
+  $("askVault").hidden = true;
+  showTab("tabAnalyse");
+  $("pw").focus();
+});
+
+function corpusNow() {
+  const c = [];
+  if (!Vault.locked) for (const e of Vault.entries) c.push({ pw: e.password, where: e.label });
+  for (const h of history) c.push({ pw: h.pw, where: "checked earlier" });
+  return c;
+}
+
+function renderReuse(a) {
+  const box = $("reuse");
+  if (!a) { box.hidden = true; return; }
+  box.hidden = false;
+  const r = reuseScan(a.pw, corpusNow());
+  let level = r.level;
+  let word = REUSE_LEVELS[level].word;
+  let text = reuseSentence(r);
+
+  // Being on the global list outranks anything found locally.
+  if (r.globalRank) {
+    level = 3;
+    word = "Used by millions";
+    text = `This is number ${r.globalRank} on the list of the world's most-used passwords, so it is
+            shared with strangers whether or not you reuse it yourself. ` + (r.exact.length || r.variant.length
+      ? "It is also saved elsewhere in your vault." : "");
+  }
+  const L = REUSE_LEVELS[level];
+  box.style.setProperty("--r", L.color);
+  $("reuseWord").textContent = word;
+  $("reuseMeter").innerHTML = Array.from({ length: 4 },
+    (_, i) => `<i class="${i < (level === 0 ? 1 : level + 1) ? "on" : ""}"></i>`).join("");
+  $("reuseText").textContent = text.trim() +
+    (Vault.locked && Vault.exists()
+      ? " Your vault is locked, so nothing saved in it could be compared — unlock it for a full check."
+      : "");
+}
+
+/* ---- reaction to a change of band ---- */
+const FX = ["fx-alarm", "fx-warn", "fx-note", "fx-good", "fx-seal"];
+let lastBand = null;
+
+function playBandEffect(idx) {
+  const f = document.querySelector(".field");
+  const g = $("gauge");
+  if (idx === null) {
+    f.style.removeProperty("--edge");
+    f.classList.remove(...FX);
+    g.classList.remove("alarm");
+    lastBand = null;
+    return;
+  }
+  f.style.setProperty("--edge", GRADE_COLOR[idx]);
+  g.classList.toggle("alarm", idx === 0);
+  if (idx === lastBand) return;          // only react when the verdict changes
+  lastBand = idx;
+  if (reduced) return;
+  f.classList.remove(...FX);
+  void f.offsetWidth;                    // restart the animation
+  f.classList.add(FX[idx]);
+  const grade = $("grade");
+  grade.classList.remove("pop");
+  void grade.offsetWidth;
+  grade.classList.add("pop");
+}
+document.addEventListener("animationend", e => {
+  if (e.target.classList.contains("field")) e.target.classList.remove(...FX);
+  if (e.target.id === "grade") e.target.classList.remove("pop");
+}, true);
+
+let fixCache = { pw: null, rows: [] };
+function renderFixes(a) {
+  const box = $("fixes");
+  if (!a || a.bits >= 76) { box.hidden = true; return; }
+  if (fixCache.pw !== a.pw) fixCache = { pw: a.pw, rows: improvements(a.pw, a) };
+  const rows = fixCache.rows;
+  if (!rows.length) { box.hidden = true; return; }
+  box.hidden = false;
+  $("fixList").innerHTML = rows.map(r => {
+    const gain = r.bits;
+    const color = gain < 8 ? "var(--s0)" : gain < 20 ? "var(--s1)" : gain < 40 ? "var(--s3)" : "var(--s4)";
+    const lands = band(r.fresh ? r.total : r.total).name;
+    return `<div class="fix">
+      <span class="what">${escAll(r.label)}<em>${escAll(r.note)}</em></span>
+      <span class="delta" style="--d:${color}">${gain >= 0 ? "+" : ""}${gain.toFixed(0)} bits</span>
+      <span class="lands">lands on ${lands}</span>
+    </div>`;
+  }).join("");
+}
+
+let histTimer = null;
 function update() {
   const pw = $("pw").value;
   const a = pw ? analyze(pw.slice(0, 128)) : null;
   renderRail(a);
   renderVerdict(a);
+  renderReuse(a);
+  renderFixes(a);
+  clearTimeout(histTimer);
+  $("askVault").hidden = true;
+  if (a && pw.length >= 4) histTimer = setTimeout(() => {
+    recordHistory(pw, a);
+    renderAsk(pw, a);
+  }, 1100);
 }
 
 $("pw").addEventListener("input", update);
@@ -938,10 +1832,253 @@ $("mask").addEventListener("click", () => {
   update();
 });
 
-/* ============================================================
-   Generator
-   ============================================================ */
-const state = { mode: "phrase", words: 7, chars: 16, digit: true, caps: false, digits: true, symbols: true };
+/* ---------------- history (session only) ---------------- */
+const history = [];
+let reveal = false;
+
+function recordHistory(pw, a) {
+  if (history.length && history[0].pw === pw) return;
+  const b = band(a.bits);
+  history.unshift({ pw, bits: a.bits, score: score(a.bits), band: b.name,
+                    color: GRADE_COLOR[BANDS.indexOf(b)], t: Date.now() });
+  if (history.length > 60) history.pop();
+  $("histCount").textContent = history.length ? `(${history.length})` : "";
+}
+
+function renderHistory() {
+  const list = $("histList");
+  if (!history.length) {
+    list.innerHTML = `<div class="empty"><b>Nothing checked yet</b>
+      Passwords you analyse show up here so you can compare them. Go to Analyse and type one.</div>`;
+    return;
+  }
+  const time = t => new Date(t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  list.innerHTML = history.map((h, i) => `
+    <div class="hrow">
+      <span class="pw">${reveal ? escAll(h.pw) : "•".repeat(Math.min(h.pw.length, 22)) +
+        `<span style="color:var(--faint);font-family:var(--sans);font-size:11.5px"> ${h.pw.length} chars</span>`}</span>
+      <span class="band" style="--b:${h.color}">${h.band}</span>
+      <span class="sc">${h.score}/100</span>
+      <span class="tm">${time(h.t)}</span>
+      <button class="mini" data-again="${i}" type="button">Reload</button>
+    </div>`).join("");
+  list.querySelectorAll("[data-again]").forEach(btn => btn.addEventListener("click", () => {
+    $("pw").value = history[+btn.dataset.again].pw;
+    showTab("tabAnalyse");
+    update();
+    $("pw").focus();
+  }));
+}
+
+$("histReveal").addEventListener("click", () => {
+  reveal = !reveal;
+  $("histReveal").textContent = reveal ? "Mask" : "Reveal";
+  $("histReveal").setAttribute("aria-pressed", String(reveal));
+  renderHistory();
+});
+$("histClear").addEventListener("click", () => {
+  history.length = 0;
+  $("histCount").textContent = "";
+  renderHistory();
+});
+
+/* ---------------- vault ---------------- */
+let vaultMsg = { text: "", kind: "" };
+let pendingSave = null;
+let bioPossible = false;
+let autoLock = null;
+
+const LOCK_ICON = `<svg viewBox="0 0 100 120" aria-hidden="true"><path d="M50 6 L92 22 V60
+  C92 88 72 106 50 114 C28 106 8 88 8 60 V22 Z"/></svg>`;
+
+function setMsg(text, kind = "") {
+  vaultMsg = { text, kind };
+  const el = $("vaultView").querySelector(".msg");
+  if (el) { el.textContent = text; el.className = "msg " + kind; }
+  else renderVault();
+}
+function touchActivity() {
+  clearTimeout(autoLock);
+  if (!Vault.locked) autoLock = setTimeout(() => { Vault.lock(); renderVault(); setMsg("Locked after 5 minutes idle."); }, 300000);
+}
+
+function renderVault() {
+  if ($("pw") && $("pw").value) renderReuse(analyze($("pw").value.slice(0, 128)));
+  const v = $("vaultView");
+  const msg = vaultMsg.text ? `<p class="msg ${vaultMsg.kind}">${escAll(vaultMsg.text)}</p>` : `<p class="msg"></p>`;
+
+  if (!subtleAvailable()) {
+    v.innerHTML = `<div class="vault-box"><h3>Not available over an insecure connection</h3>
+      <p>Browsers only hand out the encryption machinery on a secure connection, so the vault
+      will not run here. Open the page over https and it will work. Without it we would have to
+      store your passwords unencrypted, which is not something this tool is going to do.</p></div>`;
+    return;
+  }
+
+  if (!storageAvailable()) {
+    v.innerHTML = `<div class="vault-box"><h3>Storage is switched off</h3>
+      <p>This browser will not let the page save anything, so the vault cannot run here.
+      It works on the published site, or if you open the file directly. Private-browsing
+      windows also block it.</p></div>`;
+    return;
+  }
+
+  if (!Vault.exists()) {
+    v.innerHTML = `<div class="vault-box">
+      <h3>Set up your vault</h3>
+      <p>Pick a master password. It encrypts everything you save and is never stored —
+         so if you forget it, the vault cannot be recovered by anyone, including you.</p>
+      <input class="tin" id="mp1" type="password" placeholder="Master password" autocomplete="new-password">
+      <input class="tin" id="mp2" type="password" placeholder="Repeat it" autocomplete="new-password">
+      <div id="mpStrength" class="msg"></div>
+      <div class="row-btns"><button class="btn btn-primary" id="doCreate" type="button">Create vault</button></div>
+      ${msg}</div>`;
+    const gauge = () => {
+      const val = $("mp1").value;
+      const el = $("mpStrength");
+      if (!val) { el.textContent = ""; el.className = "msg"; return; }
+      const a = analyze(val), b = band(a.bits);
+      el.textContent = `${b.name} — ${a.bits.toFixed(0)} bits. ${
+        a.bits < 56 ? "A vault master password should reach Strong at least." : "Good."}`;
+      el.className = "msg " + (a.bits < 56 ? "err" : "ok");
+    };
+    $("mp1").addEventListener("input", gauge);
+    $("doCreate").addEventListener("click", async () => {
+      const a = $("mp1").value, b = $("mp2").value;
+      if (a.length < 8) return setMsg("Use at least 8 characters.", "err");
+      if (a !== b) return setMsg("The two entries do not match.", "err");
+      setMsg("Deriving your key — this takes a moment…", "busy");
+      try { await Vault.create(a); touchActivity(); renderVault(); setMsg("Vault created.", "ok"); }
+      catch (e) { setMsg(e.message === "storage" ? "Could not write to storage." : "Could not create the vault.", "err"); }
+    });
+    return;
+  }
+
+  if (Vault.locked) {
+    const bio = Vault.biometricEnrolled();
+    v.innerHTML = `<div class="vault-box">
+      <h3>Vault is locked</h3>
+      <p>Enter your master password to decrypt it.</p>
+      <input class="tin" id="mpu" type="password" placeholder="Master password" autocomplete="current-password">
+      <div class="row-btns">
+        <button class="btn btn-primary" id="doUnlock" type="button">Unlock</button>
+        ${bio ? '<button class="btn" id="doBio" type="button">Use fingerprint or face</button>' : ""}
+        <button class="btn btn-danger" id="doDestroy" type="button">Erase vault</button>
+      </div>
+      ${msg}</div>`;
+    const go = async () => {
+      const secret = $("mpu").value;
+      setMsg("Checking…", "busy");
+      try { await Vault.unlock(secret); touchActivity(); renderVault(); }
+      catch (e) { setMsg(e.message === "bad-password" ? "That password does not decrypt this vault." : "Could not unlock.", "err"); }
+    };
+    $("doUnlock").addEventListener("click", go);
+    $("mpu").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+    if (bio) $("doBio").addEventListener("click", async () => {
+      setMsg("Waiting for your device…", "busy");
+      try { await Vault.unlockBiometric(); touchActivity(); renderVault(); }
+      catch { setMsg("Biometric unlock did not complete. Use your master password.", "err"); }
+    });
+    $("doDestroy").addEventListener("click", () => {
+      if (confirm("Erase the vault and everything in it? This cannot be undone.")) {
+        Vault.destroy(); renderVault(); setMsg("Vault erased.");
+      }
+    });
+    return;
+  }
+
+  /* unlocked */
+  const bioOn = Vault.biometricEnrolled();
+  const rows = Vault.entries.length ? Vault.entries.map(e => `
+    <div class="entry">
+      <span class="who"><span class="lbl">${escAll(e.label)}</span>
+        ${e.username ? `<br><span class="usr">${escAll(e.username)}</span>` : ""}</span>
+      <span class="secret" data-secret="${e.id}">${"•".repeat(Math.min(e.password.length, 16))}</span>
+      <button class="mini" data-show="${e.id}" type="button">Show</button>
+      <button class="mini" data-copy="${e.id}" type="button">Copy</button>
+      <button class="mini" data-del="${e.id}" type="button">Delete</button>
+    </div>`).join("")
+    : `<div class="empty"><b>Vault is empty</b>Save a password below, or generate one on the
+       Analyse tab and press Save.</div>`;
+
+  v.innerHTML = `
+    <div class="vault-head">
+      <span class="lockstate">${LOCK_ICON} Unlocked · ${Vault.entries.length} saved</span>
+      <div class="row-btns">
+        <button class="btn" id="doLock" type="button">Lock</button>
+        <button class="btn btn-quiet" id="doBioToggle" type="button" ${bioPossible || bioOn ? "" : "disabled"}>
+          ${bioOn ? "Turn off fingerprint unlock" : "Turn on fingerprint unlock"}</button>
+      </div>
+    </div>
+    <div class="entries">${rows}</div>
+    <div class="addform">
+      <h3>Save a password</h3>
+      <div class="grid2">
+        <input class="tin" id="eLabel" placeholder="What is it for (e.g. college portal)">
+        <input class="tin" id="eUser" placeholder="Username (optional)">
+      </div>
+      <input class="tin" id="ePass" placeholder="Password" value="${pendingSave ? escAll(pendingSave) : ""}">
+      <div class="row-btns"><button class="btn btn-primary" id="doAdd" type="button">Save to vault</button></div>
+    </div>
+    ${msg}
+    ${bioPossible || bioOn ? "" : `<p class="pool-note">Fingerprint unlock needs a device
+      that supports passkeys with the PRF extension. Yours does not report it, so only the
+      master password is offered — a fingerprint prompt that did not actually protect the
+      data would be worse than none.</p>`}`;
+
+  pendingSave = null;
+  $("doLock").addEventListener("click", () => { Vault.lock(); clearTimeout(autoLock); renderVault(); setMsg("Locked."); });
+  $("doAdd").addEventListener("click", async () => {
+    const label = $("eLabel").value.trim(), password = $("ePass").value;
+    if (!label) return setMsg("Give it a name so you can find it later.", "err");
+    if (!password) return setMsg("Nothing to save — the password field is empty.", "err");
+    try {
+      await Vault.add({ label, username: $("eUser").value.trim(), password });
+      touchActivity(); renderVault(); setMsg("Saved.", "ok");
+    } catch { setMsg("Could not save.", "err"); }
+  });
+  $("doBioToggle").addEventListener("click", async () => {
+    if (bioOn) { Vault.disableBiometric(); renderVault(); return setMsg("Fingerprint unlock turned off."); }
+    setMsg("Waiting for your device…", "busy");
+    try { await Vault.enableBiometric(); renderVault(); setMsg("Fingerprint unlock is on.", "ok"); }
+    catch (e) {
+      setMsg(e.message === "no-prf"
+        ? "This device can take your fingerprint but cannot derive a key from it, so it cannot protect the vault."
+        : "Setup did not complete.", "err");
+    }
+  });
+  v.querySelectorAll("[data-show]").forEach(b => b.addEventListener("click", () => {
+    const e = Vault.entries.find(x => x.id === b.dataset.show);
+    const cell = v.querySelector(`[data-secret="${b.dataset.show}"]`);
+    const hidden = b.textContent === "Show";
+    cell.textContent = hidden ? e.password : "•".repeat(Math.min(e.password.length, 16));
+    b.textContent = hidden ? "Hide" : "Show";
+    touchActivity();
+  }));
+  v.querySelectorAll("[data-copy]").forEach(b => b.addEventListener("click", async () => {
+    const e = Vault.entries.find(x => x.id === b.dataset.copy);
+    await copyText(e.password);
+    b.textContent = "Copied"; b.classList.add("done");
+    setTimeout(() => { b.textContent = "Copy"; b.classList.remove("done"); }, 1400);
+    touchActivity();
+  }));
+  v.querySelectorAll("[data-del]").forEach(b => b.addEventListener("click", async () => {
+    await Vault.remove(b.dataset.del); touchActivity(); renderVault(); setMsg("Deleted.");
+  }));
+}
+
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch {
+    const t = document.createElement("textarea");
+    t.value = text; document.body.appendChild(t); t.select();
+    document.execCommand("copy"); t.remove();
+  }
+}
+
+/* ---------------- generator ---------------- */
+const state = { mode: "phrase", words: 7, chars: 16, digit: true, caps: false,
+                lower: true, upper: true, digits: true, symbols: true };
 
 function renderControls() {
   const phrase = state.mode === "phrase";
@@ -954,51 +2091,60 @@ function renderControls() {
   $("opts").innerHTML = phrase
     ? `<label><input type="checkbox" id="o1" ${state.digit ? "checked" : ""}> Add a digit</label>
        <label><input type="checkbox" id="o2" ${state.caps ? "checked" : ""}> Capitalise</label>`
-    : `<label><input type="checkbox" id="o3" ${state.digits ? "checked" : ""}> Digits</label>
-       <label><input type="checkbox" id="o4" ${state.symbols ? "checked" : ""}> Symbols</label>`;
+    : SET_ORDER.map(k => {
+        const label = { lower: "a–z", upper: "A–Z", digits: "0–9", symbols: "Symbols" }[k];
+        const last = state[k] && SET_ORDER.filter(x => state[x]).length === 1;
+        return `<label${last ? ' title="One set has to stay on"' : ""}><input type="checkbox"
+          data-set="${k}" ${state[k] ? "checked" : ""} ${last ? "disabled" : ""}> ${label}</label>`;
+      }).join(" ");
   $("poolNote").textContent = phrase
     ? `Each word is drawn at random from a list of ${PHRASE_WORDS.length}, so every word adds ${Math.log2(PHRASE_WORDS.length).toFixed(1)} bits. Capitalising adds none — it is there only for sites that insist on it. Times assume the worst case: a stolen database cracked on GPUs.`
-    : `Characters are drawn at random from a set of ${(state.digits ? 8 : 0) + (state.symbols ? 13 : 0) + 49}. Look-alikes (l, I, O, 0, 1) are left out so you can read it back. Times assume the worst case: a stolen database cracked on GPUs.`;
+    : charPool(state)
+      ? `Characters are drawn at random from a set of ${charPool(state).length}, with one guaranteed from each box you tick — for sites that insist on it. Ticking more boxes helps far less than adding length. Look-alikes (l, I, O, 0, 1) are left out so you can read it back.`
+      : `Tick at least one character set.`;
   const bind = (id, key) => { const el = $(id); if (el) el.addEventListener("change", e => { state[key] = e.target.checked; regenerate(); }); };
-  bind("o1", "digit"); bind("o2", "caps"); bind("o3", "digits"); bind("o4", "symbols");
+  bind("o1", "digit"); bind("o2", "caps");
+  $("opts").querySelectorAll("[data-set]").forEach(el =>
+    el.addEventListener("change", e => { state[e.target.dataset.set] = e.target.checked; regenerate(); }));
+  bind("o3", "lower"); bind("o4", "upper"); bind("o5", "digits"); bind("o6", "symbols");
 }
 
 function regenerate() {
   renderControls();
   if (!HAS_CRYPTO) {
-    $("suggestions").innerHTML =
-      `<p class="placeholder" style="padding:14px 0">This browser will not give us cryptographic randomness, ` +
-      `so we are not going to invent passwords with a weaker source. Open this page over https and try again.</p>`;
+    $("suggestions").innerHTML = `<p class="placeholder" style="padding:14px 0">This browser will not
+      give us cryptographic randomness, so we are not going to invent passwords with a weaker
+      source. Open this page over https and try again.</p>`;
     $("reroll").disabled = true;
     return;
   }
+  if (state.mode === "chars" && !charPool(state)) {
+    $("suggestions").innerHTML = `<p class="placeholder" style="padding:14px 0">Tick at least one
+      character set above and suggestions will appear.</p>`;
+    return;
+  }
   const rows = Array.from({ length: 5 }, () => state.mode === "phrase"
-    ? makePassphrase(state.words, state)
-    : makeCharacters(state.chars, state));
+    ? makePassphrase(state.words, state) : makeCharacters(state.chars, state));
 
   $("suggestions").innerHTML = rows.map((r, i) => `
     <div class="sug">
       <span class="sug-pw" data-i="${i}" role="button" tabindex="0"
-            aria-label="Load this password into the analyzer" title="Load into the analyzer">${r.text.replace(/</g, "&lt;")}</span>
+            aria-label="Load this password into the analyser">${escAll(r.text)}</span>
       <span class="sug-bits">${r.bits.toFixed(0)} bits · ${crackTimes(r.bits)[3].text}</span>
-      <button class="copy" type="button" data-i="${i}">Copy</button>
+      <button class="mini" data-save="${i}" type="button">Save</button>
+      <button class="mini" data-copy2="${i}" type="button">Copy</button>
     </div>`).join("");
 
-  $("suggestions").querySelectorAll(".copy").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const text = rows[+btn.dataset.i].text;
-      try { await navigator.clipboard.writeText(text); }
-      catch {
-        const t = document.createElement("textarea");
-        t.value = text; document.body.appendChild(t); t.select();
-        document.execCommand("copy"); t.remove();
-      }
-      btn.textContent = "Copied";
-      btn.classList.add("done");
-      setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1400);
-    });
-  });
-
+  $("suggestions").querySelectorAll("[data-copy2]").forEach(btn => btn.addEventListener("click", async () => {
+    await copyText(rows[+btn.dataset.copy2].text);
+    btn.textContent = "Copied"; btn.classList.add("done");
+    setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("done"); }, 1400);
+  }));
+  $("suggestions").querySelectorAll("[data-save]").forEach(btn => btn.addEventListener("click", () => {
+    pendingSave = rows[+btn.dataset.save].text;
+    showTab("tabVault");
+    if (Vault.locked) setMsg("Unlock the vault and the password will be waiting in the form.");
+  }));
   const load = el => { $("pw").value = rows[+el.dataset.i].text; update(); $("pw").focus(); };
   $("suggestions").querySelectorAll(".sug-pw").forEach(el => {
     el.addEventListener("click", () => load(el));
@@ -1020,8 +2166,22 @@ $("plus").addEventListener("click", () => {
 });
 $("reroll").addEventListener("click", regenerate);
 
-update();
-regenerate();
+/* ---------------- boot ---------------- */
+$("privacyNote").innerHTML =
+  `<b>Everything runs in this page.</b> Nothing you type is sent anywhere — the tool makes no network
+   requests at all, and works with the network switched off. History is held in memory only and
+   disappears when you close the tab. The vault is the one thing written to disk, and it is
+   encrypted with a key derived from your master password (PBKDF2-SHA256, 600,000 iterations,
+   AES-256-GCM); the master password itself is never stored.`;
+
+runSplash(async () => {
+  $("app").hidden = false;
+  update();
+  regenerate();
+  bioPossible = await platformAuthenticator();
+  if (!$("panelVault").hidden) renderVault();
+});
+["click", "keydown"].forEach(ev => document.addEventListener(ev, touchActivity, true));
 
 </script>
 </body>
