@@ -7,96 +7,163 @@
 <title>CyberShield — password strength analysis</title>
 <style>
 :root{
-  --ground:#151B23;
-  --panel:#1C242E;
-  --raised:#242E3A;
-  --rule:#2F3A47;
-  --rule-soft:#252E39;
-  --text:#E6EAEE;
-  --muted:#8C97A3;
-  --faint:#5F6B78;
+  --ground:#12131A;
+  --panel:#191B25;
+  --raised:#212433;
+  --rule:#2C3040;
+  --rule-line:#232634;
+  --text:#E9E8F0;
+  --muted:#8E8EA6;
+  --faint:#5E5E78;
 
-  --s0:#E2574E;
-  --s1:#D98A3C;
-  --s2:#BFAE4A;
-  --s3:#57B37C;
-  --s4:#35B9A8;
-  --seal:#35B9A8;
+  --seal:#8B6BFF;
+  --seal-dim:#5B45B8;
 
-  --p-common:#E2574E;
-  --p-word:#D98A3C;
-  --p-seq:#B3A83F;
-  --p-repeat:#9B7BD4;
+  --s0:#FF4D5E;
+  --s1:#FF8F3D;
+  --s2:#E3C13F;
+  --s3:#5FD97A;
+  --s4:#3FD9C0;
+
+  --p-common:#FF4D5E;
+  --p-word:#FF8F3D;
+  --p-seq:#D7B13C;
+  --p-repeat:#FF6BC1;
   --p-keys:#5B9BE0;
-  --p-date:#9A8E72;
-  --p-rand:#57B37C;
+  --p-date:#A08E6E;
+  --p-rand:#5FD97A;
 
   --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
   --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --display:"Arial Black","Segoe UI Black","Helvetica Neue",Arial,sans-serif;
 }
+
+/* the vault is a different room entirely */
+body.vault-mode{
+  --ground:#08080A;
+  --panel:#111015;
+  --raised:#1A171F;
+  --rule:#33291C;
+  --rule-line:#241E16;
+  --text:#F2EADA;
+  --muted:#A0957F;
+  --faint:#6B6252;
+  --seal:#D9B451;
+  --seal-dim:#8A6F28;
+}
+
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{
   margin:0;background:var(--ground);color:var(--text);
   font-family:var(--sans);font-size:16px;line-height:1.5;
-  font-feature-settings:"kern","liga";
+  transition:background .45s ease,color .45s ease;
 }
-.wrap{max-width:960px;margin:0 auto;padding:0 24px 96px}
+
+/* ---- background: a faint grid, and a glow that follows the theme ---- */
+.backdrop{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.backdrop .grid{position:absolute;inset:-2px;opacity:.5;
+  background-image:linear-gradient(var(--rule-line) 1px,transparent 1px),
+                   linear-gradient(90deg,var(--rule-line) 1px,transparent 1px);
+  background-size:46px 46px;
+  mask-image:radial-gradient(120% 90% at 50% 0%,#000 0%,transparent 78%);
+  -webkit-mask-image:radial-gradient(120% 90% at 50% 0%,#000 0%,transparent 78%)}
+.backdrop .glow{position:absolute;left:50%;top:-340px;width:900px;height:640px;
+  transform:translateX(-50%);border-radius:50%;filter:blur(90px);opacity:.22;
+  background:radial-gradient(circle,var(--seal) 0%,transparent 65%);
+  transition:background .45s ease}
+.wrap{position:relative;z-index:1;max-width:980px;margin:0 auto;padding:0 24px 96px}
+
+/* ================= wordmark ================= */
+.wordmark{
+  font-family:var(--display);font-weight:900;text-transform:uppercase;
+  letter-spacing:.1em;line-height:1;display:flex;
+  text-shadow:0 0 46px color-mix(in srgb,var(--seal) 55%,transparent);
+}
+.wordmark span{
+  display:inline-block;min-width:.66em;text-align:center;
+  color:transparent;-webkit-text-stroke:1.4px var(--seal-dim);
+  transition:color .16s ease;
+}
+.wordmark span.set{color:var(--text);-webkit-text-stroke-width:0}
+.wordmark span.hit{color:var(--seal);-webkit-text-stroke-width:0}
 
 /* ================= splash ================= */
-#splash{
-  position:fixed;inset:0;z-index:50;background:var(--ground);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:26px;cursor:pointer;
-}
-#splash.out{opacity:0;pointer-events:none;transition:opacity .5s ease}
-.shield{width:64px;height:76px;display:block}
-.shield path{fill:none;stroke:var(--seal);stroke-width:5;stroke-linejoin:round;
-  stroke-dasharray:360;stroke-dashoffset:360;animation:draw 1.5s ease forwards}
-.shield .tick{stroke-width:6;stroke-linecap:round;stroke-dasharray:60;stroke-dashoffset:60;
-  animation:draw .5s ease .95s forwards}
+#splash{position:fixed;inset:0;z-index:60;background:var(--ground);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:30px;cursor:pointer}
+#splash.out{opacity:0;pointer-events:none;transition:opacity .55s ease}
+#splash .wordmark{font-size:clamp(34px,10.5vw,92px)}
+.mark{width:96px;height:112px;display:block}
+.mark .body{fill:none;stroke:var(--seal);stroke-width:4.5;stroke-linejoin:round;
+  stroke-dasharray:370;stroke-dashoffset:370;animation:draw 1.4s ease forwards}
+.mark .hole{fill:var(--seal);opacity:0;animation:fade .5s ease 1.05s forwards}
+.mark .stem{stroke:var(--seal);stroke-width:7;stroke-linecap:round;opacity:0;
+  animation:fade .5s ease 1.2s forwards}
+.mark .shackle{fill:none;stroke:var(--seal);stroke-width:5;stroke-linecap:round;
+  stroke-dasharray:90;stroke-dashoffset:90;animation:draw .6s ease 1.35s forwards}
+.mark .trace{stroke:var(--seal-dim);stroke-width:3;stroke-linecap:round;opacity:0;
+  animation:fade .6s ease 1.6s forwards}
 @keyframes draw{to{stroke-dashoffset:0}}
-#word{
-  font-family:var(--mono);font-size:clamp(26px,7.2vw,54px);font-weight:600;
-  letter-spacing:.16em;display:flex;gap:.04em;
-}
-#word span{display:inline-block;min-width:.62em;text-align:center;color:var(--faint)}
-#word span.set{color:var(--text)}
-#word span.hit{color:var(--seal)}
-.splash-sub{color:var(--muted);font-size:13px;letter-spacing:.02em;min-height:1.2em}
-.bar{width:min(260px,62vw);height:2px;background:var(--rule);overflow:hidden}
+@keyframes fade{to{opacity:1}}
+.splash-sub{color:var(--muted);font-size:13.5px;letter-spacing:.14em;
+  text-transform:uppercase;min-height:1.2em}
+.bar{width:min(300px,64vw);height:2px;background:var(--rule)}
 .bar i{display:block;height:100%;width:0;background:var(--seal)}
-.skip{position:fixed;bottom:26px;color:var(--faint);font-size:12px;letter-spacing:.02em}
+.skip{position:fixed;bottom:26px;color:var(--faint);font-size:12px}
+
+/* ================= login gate ================= */
+#gate{position:fixed;inset:0;z-index:55;background:var(--ground);
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px}
+#gate.on{display:flex}
+#gate .mark{width:62px;height:74px}
+#gate .mark *{animation:none!important;opacity:1;stroke-dashoffset:0}
+#gate h1{font-family:var(--display);font-size:26px;letter-spacing:.14em;
+  text-transform:uppercase;margin:0;font-weight:900}
+#gate p{margin:0;color:var(--muted);font-size:13.5px;text-align:center;max-width:42ch}
+#gate .gatebox{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;width:min(400px,100%)}
+#gate input{flex:1;min-width:190px}
+#gateMsg{font-size:13px;min-height:1.2em;color:var(--s0)}
+.gate-note{font-size:12px;color:var(--faint);max-width:48ch;text-align:center;line-height:1.6}
 
 /* ================= top bar ================= */
-.topbar{
-  display:flex;align-items:center;gap:18px;flex-wrap:wrap;
-  padding:22px 0 18px;border-bottom:1px solid var(--rule);margin-bottom:30px;
-}
-.brand{display:flex;align-items:center;gap:10px;margin-right:auto}
-.brand svg{width:22px;height:26px}
-.brand svg path{fill:none;stroke:var(--seal);stroke-width:5;stroke-linejoin:round}
-.brand b{font-size:17px;font-weight:600;letter-spacing:.01em}
-.tabs{display:flex;gap:2px;background:var(--panel);border:1px solid var(--rule);border-radius:3px;padding:2px}
-.tabs button{
-  border:0;background:transparent;color:var(--muted);font:inherit;font-size:13.5px;
-  padding:7px 15px;border-radius:2px;cursor:pointer;
-}
+.topbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:22px 0 18px;border-bottom:1px solid var(--rule);margin-bottom:26px}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto}
+.brand .mark{width:26px;height:31px}
+.brand .mark *{animation:none!important;opacity:1;stroke-dashoffset:0}
+.brand b{font-family:var(--display);font-size:16px;font-weight:900;letter-spacing:.12em;
+  text-transform:uppercase}
+.status{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;color:var(--muted);
+  border:1px solid var(--rule);border-radius:20px;padding:5px 12px}
+.status i{width:6px;height:6px;border-radius:50%;background:var(--s3);flex:none}
+.tabs{display:flex;gap:2px;background:var(--panel);border:1px solid var(--rule);
+  border-radius:3px;padding:2px}
+.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:13.5px;
+  padding:7px 15px;border-radius:2px;cursor:pointer}
 .tabs button:hover{color:var(--text)}
 .tabs button[aria-selected="true"]{background:var(--raised);color:var(--text)}
 .count{color:var(--faint);font-size:11.5px;margin-left:5px}
 
+/* ================= hero ================= */
+.hero{position:relative;margin-bottom:6px}
+.ghost{position:absolute;left:-2px;top:-46px;z-index:0;pointer-events:none;user-select:none;
+  font-family:var(--display);font-weight:900;text-transform:uppercase;letter-spacing:.04em;
+  font-size:clamp(56px,14vw,142px);line-height:.85;color:transparent;
+  -webkit-text-stroke:1px var(--rule);opacity:.55;white-space:nowrap;overflow:hidden;
+  mask-image:linear-gradient(180deg,#000 0%,transparent 72%);
+  -webkit-mask-image:linear-gradient(180deg,#000 0%,transparent 72%)}
+.hero > *:not(.ghost){position:relative;z-index:1}
+
 /* ================= buttons ================= */
-.btn{
-  border:1px solid var(--rule);background:var(--raised);color:var(--text);
+.btn{border:1px solid var(--rule);background:var(--raised);color:var(--text);
   font:inherit;font-size:13px;padding:9px 16px;border-radius:3px;cursor:pointer;
-}
-.btn:hover{border-color:var(--faint)}
-.btn-primary{background:var(--seal);border-color:var(--seal);color:#0E1519;font-weight:600}
-.btn-primary:hover{filter:brightness(1.08);border-color:var(--seal)}
+  transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--seal)}
+.btn-primary{background:var(--seal);border-color:var(--seal);color:#15101F;font-weight:600}
+.btn-primary:hover{filter:brightness(1.1)}
 .btn-quiet{background:transparent;color:var(--muted)}
 .btn-quiet:hover{color:var(--text)}
-.btn-danger{background:transparent;border-color:#5A2E2E;color:var(--s0)}
+.btn-danger{background:transparent;border-color:#5A2E38;color:var(--s0)}
 .btn-danger:hover{border-color:var(--s0)}
 .btn:disabled{opacity:.4;cursor:default}
 button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--seal);outline-offset:2px}
@@ -105,14 +172,34 @@ button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px so
 [role="tabpanel"][hidden]{display:none}
 h2{font-size:14px;font-weight:600;margin:0 0 14px}
 
-/* specimen */
+/* bracketed frame — a monitoring motif, used only on the two live readouts */
+.framed{position:relative;padding:18px 18px 16px;border:1px solid var(--rule);border-radius:4px;
+  background:color-mix(in srgb,var(--panel) 70%,transparent)}
+.framed::before,.framed::after{content:"";position:absolute;width:12px;height:12px;
+  border:1.5px solid var(--seal);opacity:.55}
+.framed::before{left:-1px;top:-1px;border-right:0;border-bottom:0}
+.framed::after{right:-1px;bottom:-1px;border-left:0;border-top:0}
+
 .field{display:flex;align-items:center;gap:12px;background:var(--panel);
-  border:1px solid var(--rule);border-radius:4px;padding:0 12px 0 18px;transition:border-color .12s}
+  border:1px solid var(--edge,var(--rule));border-radius:4px;padding:0 12px 0 18px;
+  transition:border-color .2s}
 .field:focus-within{border-color:var(--seal)}
 #pw{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--text);
   font-family:var(--mono);font-size:clamp(19px,4.4vw,29px);font-weight:500;
   letter-spacing:.04em;padding:20px 0}
 #pw::placeholder{color:var(--faint);letter-spacing:0}
+
+.field.fx-alarm{animation:fxShake .42s ease,fxRing .7s ease}
+.field.fx-warn,.field.fx-note,.field.fx-good{animation:fxRing .6s ease}
+.field.fx-seal{animation:fxRing .6s ease,fxRing .6s ease .3s}
+@keyframes fxShake{0%,100%{transform:translateX(0)}18%{transform:translateX(-6px)}
+  36%{transform:translateX(5px)}54%{transform:translateX(-4px)}72%{transform:translateX(3px)}
+  86%{transform:translateX(-1px)}}
+@keyframes fxRing{from{box-shadow:0 0 0 0 var(--edge)}to{box-shadow:0 0 0 13px transparent}}
+.grade.pop{animation:fxPop .32s cubic-bezier(.2,1.4,.4,1)}
+@keyframes fxPop{from{transform:scale(.86);opacity:.5}to{transform:none;opacity:1}}
+.gauge.alarm i.on{animation:fxBlink .9s ease-in-out 2}
+@keyframes fxBlink{50%{opacity:.3}}
 
 .rail-scroll{overflow-x:auto;padding:10px 0 2px;margin-bottom:4px}
 .rail{display:grid;row-gap:5px;width:max-content;min-width:100%}
@@ -124,21 +211,38 @@ h2{font-size:14px;font-weight:600;margin:0 0 14px}
 .verdict{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex-wrap:wrap;
   border-top:1px solid var(--rule);padding-top:18px;margin-top:14px}
 .verdict-main{display:flex;align-items:baseline;gap:14px}
-.grade{font-size:26px;font-weight:600;color:var(--grade,var(--muted))}
+.grade{font-family:var(--display);font-size:24px;font-weight:900;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--grade,var(--muted))}
 .grade-sub{font-size:13.5px;color:var(--muted)}
 .readout{font-family:var(--mono);font-size:13px;color:var(--muted);text-align:right}
 .readout b{color:var(--text);font-weight:600}
 .gauge{display:grid;grid-template-columns:repeat(50,1fr);gap:2px;margin-top:16px;height:12px}
-.gauge i{background:var(--rule-soft);border-radius:1px}
+.gauge i{background:var(--rule)}
 .gauge i.on{background:var(--grade,var(--muted))}
 .gauge-scale{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--faint)}
 
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:38px}
-@media (max-width:760px){.cols{grid-template-columns:1fr;gap:30px}}
+.reuse{margin-top:22px;border:1px solid var(--rule);border-left:3px solid var(--r,var(--muted));
+  border-radius:4px;background:var(--panel);padding:14px 16px}
+.reuse-top{display:flex;align-items:center;gap:12px}
+.reuse-word{font-size:13.5px;font-weight:600;color:var(--r,var(--muted))}
+.reuse-meter{display:flex;gap:3px;margin-left:auto}
+.reuse-meter i{width:26px;height:5px;border-radius:2px;background:var(--rule)}
+.reuse-meter i.on{background:var(--r,var(--muted))}
+.reuse-text{margin:7px 0 0;font-size:13px;color:var(--muted);max-width:76ch}
+
+.askvault{margin-top:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
+  background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--seal);
+  border-radius:4px;padding:14px 16px}
+.ask-text{margin:0;flex:1;min-width:220px;font-size:13.5px}
+.ask-text em{font-style:normal;color:var(--muted)}
+.ask-btns{display:flex;gap:9px}
+
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:34px}
+@media (max-width:760px){.cols{grid-template-columns:1fr;gap:26px}}
 table.cost{width:100%;border-collapse:collapse;font-size:13.5px}
 table.cost th{text-align:left;font-weight:400;color:var(--muted);padding:9px 0;
-  border-bottom:1px solid var(--rule-soft);vertical-align:top}
-table.cost td{text-align:right;padding:9px 0 9px 12px;border-bottom:1px solid var(--rule-soft);
+  border-bottom:1px solid var(--rule);vertical-align:top}
+table.cost td{text-align:right;padding:9px 0 9px 12px;border-bottom:1px solid var(--rule);
   font-family:var(--mono);font-size:13px;white-space:nowrap}
 table.cost tr:last-child th,table.cost tr:last-child td{border-bottom:0}
 table.cost .hot{color:var(--s0);font-weight:600}
@@ -152,155 +256,8 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
   padding:1px 5px;border-radius:2px;color:var(--text)}
 .placeholder{color:var(--faint);font-size:13.5px;margin:0}
 
-/* ---- reaction to a change of band -------------------------------
-   Fires only when the verdict actually changes, not on every keystroke. */
-.field{border-color:var(--edge,var(--rule))}
-.field.fx-alarm{animation:fxShake .42s ease, fxRing .7s ease}
-.field.fx-warn {animation:fxRing .6s ease}
-.field.fx-note {animation:fxRing .5s ease}
-.field.fx-good {animation:fxRing .6s ease}
-.field.fx-seal {animation:fxRing .6s ease, fxRing .6s ease .3s}
-@keyframes fxShake{
-  0%,100%{transform:translateX(0)} 18%{transform:translateX(-6px)}
-  36%{transform:translateX(5px)} 54%{transform:translateX(-4px)}
-  72%{transform:translateX(3px)} 86%{transform:translateX(-1px)}
-}
-@keyframes fxRing{
-  from{box-shadow:0 0 0 0 var(--edge)}
-  to  {box-shadow:0 0 0 13px transparent}
-}
-.grade.pop{animation:fxPop .32s cubic-bezier(.2,1.4,.4,1)}
-@keyframes fxPop{from{transform:scale(.86);opacity:.5}to{transform:none;opacity:1}}
-.gauge.alarm i.on{animation:fxBlink .9s ease-in-out 2}
-@keyframes fxBlink{50%{opacity:.35}}
-
-/* ---- save-to-vault prompt ---- */
-.askvault{margin-top:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
-  background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--seal);
-  border-radius:4px;padding:14px 16px}
-.ask-text{margin:0;flex:1;min-width:220px;font-size:13.5px}
-.ask-text em{font-style:normal;color:var(--muted)}
-.ask-btns{display:flex;gap:9px}
-
-/* ---- the vault is a different room: black and gold ---- */
-#panelVault{
-  --ground:#0A0A0C;
-  --panel:#121116;
-  --raised:#1A1820;
-  --rule:#2F2820;
-  --rule-soft:#231E18;
-  --text:#F0E8D6;
-  --muted:#9C9280;
-  --faint:#6A6252;
-  --seal:#D4AF37;
-  --s4:#D4AF37;
-  color:var(--text);
-  background:
-    linear-gradient(180deg,rgba(212,175,55,.05) 0%,rgba(212,175,55,0) 140px),
-    radial-gradient(130% 90% at 50% -10%,#16141A 0%,#0A0A0C 62%);
-  border:1px solid #2F2820;
-  border-top:2px solid var(--seal);
-  border-radius:5px;
-  padding:30px 26px 34px;
-}
-#panelVault .btn-primary{color:#17130A}
-#panelVault .btn-danger{border-color:#5A3A2E;color:#E08A6A}
-#panelVault .vault-box{box-shadow:0 1px 0 rgba(212,175,55,.08) inset}
-#panelVault .lockstate{color:var(--seal);letter-spacing:.01em}
-#panelVault .empty{border-color:#2F2820}
-
-/* reuse meter */
-.reuse{display:flex;align-items:center;gap:16px;margin-top:24px;padding:14px 18px;
-  border:1px solid var(--rule);border-radius:4px;background:var(--panel);flex-wrap:wrap}
-.reuse-label{font-size:13px;font-weight:600;flex:none}
-.reuse-meter{display:flex;gap:3px;flex:none}
-.reuse-meter i{width:28px;height:6px;border-radius:2px;background:var(--rule-soft)}
-.reuse-meter i.on{background:var(--rl,var(--muted))}
-.reuse-text{font-size:13px;color:var(--muted);flex:1;min-width:200px}
-.reuse-text b{color:var(--rl,var(--text));font-weight:600}
-
-/* improvements */
-.improve{margin-top:38px;border-top:1px solid var(--rule);padding-top:24px}
-.imp{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--rule-soft)}
-.imp-main{flex:1;min-width:0}
-.imp-lbl{font-size:13px;color:var(--muted);margin-bottom:3px}
-.imp-pw{font-family:var(--mono);font-size:15px;word-break:break-all;line-height:1.4;cursor:pointer}
-.imp-why{font-size:12px;color:var(--faint);margin-top:4px}
-.imp-bits{flex:none;font-family:var(--mono);font-size:12px;color:var(--muted);
-  white-space:nowrap;text-align:right}
-.imp-bits b{color:var(--s4);font-weight:600;display:block}
-@media (max-width:600px){.imp{flex-wrap:wrap}.imp-main{flex-basis:100%}}
-
-/* ---- reaction to a change of band -------------------------------
-   Fires only when the verdict actually changes, not on every keystroke. */
-.field{border-color:var(--edge,var(--rule))}
-.field.fx-alarm{animation:fxShake .42s ease, fxRing .7s ease}
-.field.fx-warn {animation:fxRing .6s ease}
-.field.fx-note {animation:fxRing .5s ease}
-.field.fx-good {animation:fxRing .6s ease}
-.field.fx-seal {animation:fxRing .6s ease, fxRing .6s ease .3s}
-@keyframes fxShake{
-  0%,100%{transform:translateX(0)} 18%{transform:translateX(-6px)}
-  36%{transform:translateX(5px)} 54%{transform:translateX(-4px)}
-  72%{transform:translateX(3px)} 86%{transform:translateX(-1px)}
-}
-@keyframes fxRing{
-  from{box-shadow:0 0 0 0 var(--edge)}
-  to  {box-shadow:0 0 0 13px transparent}
-}
-.grade.pop{animation:fxPop .32s cubic-bezier(.2,1.4,.4,1)}
-@keyframes fxPop{from{transform:scale(.86);opacity:.5}to{transform:none;opacity:1}}
-.gauge.alarm i.on{animation:fxBlink .9s ease-in-out 2}
-@keyframes fxBlink{50%{opacity:.35}}
-
-/* ---- save-to-vault prompt ---- */
-.askvault{margin-top:16px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;
-  background:var(--panel);border:1px solid var(--rule);border-left:3px solid var(--seal);
-  border-radius:4px;padding:14px 16px}
-.ask-text{margin:0;flex:1;min-width:220px;font-size:13.5px}
-.ask-text em{font-style:normal;color:var(--muted)}
-.ask-btns{display:flex;gap:9px}
-
-/* ---- the vault is a different room: black and gold ---- */
-#panelVault{
-  --ground:#0A0A0C;
-  --panel:#121116;
-  --raised:#1A1820;
-  --rule:#2F2820;
-  --rule-soft:#231E18;
-  --text:#F0E8D6;
-  --muted:#9C9280;
-  --faint:#6A6252;
-  --seal:#D4AF37;
-  --s4:#D4AF37;
-  color:var(--text);
-  background:
-    linear-gradient(180deg,rgba(212,175,55,.05) 0%,rgba(212,175,55,0) 140px),
-    radial-gradient(130% 90% at 50% -10%,#16141A 0%,#0A0A0C 62%);
-  border:1px solid #2F2820;
-  border-top:2px solid var(--seal);
-  border-radius:5px;
-  padding:30px 26px 34px;
-}
-#panelVault .btn-primary{color:#17130A}
-#panelVault .btn-danger{border-color:#5A3A2E;color:#E08A6A}
-#panelVault .vault-box{box-shadow:0 1px 0 rgba(212,175,55,.08) inset}
-#panelVault .lockstate{color:var(--seal);letter-spacing:.01em}
-#panelVault .empty{border-color:#2F2820}
-
-/* reuse meter */
-.reuse{margin-top:22px;border:1px solid var(--rule);border-left:3px solid var(--r,var(--muted));
-  border-radius:4px;background:var(--panel);padding:14px 16px}
-.reuse-top{display:flex;align-items:center;gap:12px}
-.reuse-word{font-size:13.5px;font-weight:600;color:var(--r,var(--muted))}
-.reuse-meter{display:flex;gap:3px;margin-left:auto}
-.reuse-meter i{width:26px;height:5px;border-radius:2px;background:var(--rule)}
-.reuse-meter i.on{background:var(--r,var(--muted))}
-.reuse-text{margin:7px 0 0;font-size:13px;color:var(--muted);max-width:76ch}
-
-/* improvement table */
-.fixes{margin-top:38px}
-.fix{display:flex;align-items:baseline;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule-soft)}
+.fixes{margin-top:36px}
+.fix{display:flex;align-items:baseline;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule)}
 .fix:last-of-type{border-bottom:0}
 .fix .what{flex:1;min-width:0;font-size:13.5px}
 .fix .what em{display:block;font-style:normal;color:var(--faint);font-size:12px;margin-top:2px}
@@ -308,8 +265,7 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
   min-width:74px;text-align:right}
 .fix .lands{font-size:12.5px;color:var(--muted);white-space:nowrap;min-width:92px;text-align:right}
 
-/* generator */
-.gen{margin-top:44px;border-top:1px solid var(--rule);padding-top:26px}
+.gen{margin-top:42px;border-top:1px solid var(--rule);padding-top:26px}
 .gen-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap}
 .controls{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:16px 0 20px}
 .seg-toggle{display:inline-flex;border:1px solid var(--rule);border-radius:3px;overflow:hidden}
@@ -326,22 +282,21 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
 .opts{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
 .opts label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
 .opts input{accent-color:var(--seal);margin:0}
-.suggestions{border-top:1px solid var(--rule-soft)}
-.sug{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--rule-soft)}
+.suggestions{border-top:1px solid var(--rule)}
+.sug{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--rule)}
 .sug-pw{flex:1;min-width:0;font-family:var(--mono);font-size:15.5px;word-break:break-all;
   line-height:1.4;cursor:pointer}
 .sug-bits{flex:none;font-family:var(--mono);font-size:12px;color:var(--muted);white-space:nowrap}
 .mini{border:1px solid var(--rule);background:transparent;color:var(--muted);font:inherit;
   font-size:12.5px;padding:6px 12px;border-radius:3px;cursor:pointer;flex:none}
-.mini:hover{border-color:var(--faint);color:var(--text)}
-.mini.done{border-color:var(--s4);color:var(--s4)}
+.mini:hover{border-color:var(--seal);color:var(--text)}
+.mini.done{border-color:var(--s3);color:var(--s3)}
 @media (max-width:600px){.sug{flex-wrap:wrap;gap:8px}.sug-pw{flex-basis:100%}.sug-bits{flex:1}}
 .pool-note{margin:14px 0 0;font-size:12.5px;color:var(--muted);max-width:72ch}
 
-/* ================= history ================= */
 .hist-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:18px}
-.hist{border-top:1px solid var(--rule-soft)}
-.hrow{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule-soft)}
+.hist{border-top:1px solid var(--rule)}
+.hrow{display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--rule)}
 .hrow .pw{flex:1;min-width:0;font-family:var(--mono);font-size:14px;word-break:break-all}
 .hrow .band{font-size:12px;color:var(--b,var(--muted));white-space:nowrap;min-width:76px}
 .hrow .sc{font-family:var(--mono);font-size:12.5px;color:var(--muted);white-space:nowrap;min-width:58px;text-align:right}
@@ -350,7 +305,16 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
 .empty b{display:block;color:var(--text);font-weight:600;margin-bottom:6px;font-size:14.5px}
 
 /* ================= vault ================= */
-.vault-box{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:26px;max-width:520px}
+#panelVault{padding-top:4px}
+.vault-banner{display:flex;align-items:center;gap:14px;margin-bottom:24px;
+  border:1px solid var(--rule);border-radius:5px;padding:18px 20px;
+  background:linear-gradient(100deg,color-mix(in srgb,var(--seal) 10%,transparent) 0%,transparent 60%)}
+.vault-banner .mark{width:30px;height:36px;flex:none}
+.vault-banner .mark *{animation:none!important;opacity:1;stroke-dashoffset:0}
+.vault-banner h2{font-family:var(--display);font-size:17px;letter-spacing:.13em;
+  text-transform:uppercase;margin:0 0 3px;font-weight:900}
+.vault-banner p{margin:0;font-size:12.5px;color:var(--muted)}
+.vault-box{background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:26px;max-width:540px}
 .vault-box h3{margin:0 0 8px;font-size:16px;font-weight:600}
 .vault-box p{margin:0 0 18px;color:var(--muted);font-size:13.5px}
 .tin{width:100%;background:var(--ground);border:1px solid var(--rule);border-radius:3px;
@@ -359,23 +323,25 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
 .row-btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
 .msg{font-size:13px;margin:12px 0 0;min-height:1.2em}
 .msg.err{color:var(--s0)}
-.msg.ok{color:var(--s4)}
+.msg.ok{color:var(--s3)}
 .msg.busy{color:var(--muted)}
 .vault-head{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px}
-.lockstate{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--s4)}
-.lockstate svg{width:13px;height:15px}
-.lockstate svg path{fill:none;stroke:currentColor;stroke-width:5;stroke-linejoin:round}
-.entries{border-top:1px solid var(--rule-soft)}
-.entry{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--rule-soft)}
+.lockstate{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--seal);letter-spacing:.02em}
+.lockstate svg{width:14px;height:17px;flex:none}
+.lockstate svg *{animation:none!important;opacity:1;stroke-dashoffset:0}
+.entries{border-top:1px solid var(--rule)}
+.entry{display:flex;align-items:center;gap:14px;padding:13px 0;border-bottom:1px solid var(--rule)}
 .entry .who{flex:1;min-width:0}
 .entry .lbl{font-size:14px}
 .entry .usr{font-size:12px;color:var(--muted)}
-.entry .secret{font-family:var(--mono);font-size:13.5px;color:var(--muted);
-  word-break:break-all;min-width:110px}
-.addform{background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:20px;margin-top:22px}
+.entry .secret{font-family:var(--mono);font-size:13.5px;color:var(--muted);word-break:break-all;min-width:110px}
+.addform{background:var(--panel);border:1px solid var(--rule);border-radius:5px;padding:20px;margin-top:22px}
 .addform h3{margin:0 0 14px;font-size:14px;font-weight:600}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 @media (max-width:600px){.grid2{grid-template-columns:1fr}}
+.applock{margin-top:26px;border-top:1px solid var(--rule);padding-top:22px;max-width:540px}
+.applock h3{margin:0 0 6px;font-size:14px;font-weight:600}
+.applock p{margin:0 0 14px;color:var(--muted);font-size:13px}
 
 .note{margin-top:44px;padding-top:18px;border-top:1px solid var(--rule);
   font-size:12.5px;color:var(--faint);max-width:74ch}
@@ -385,26 +351,45 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
 </head>
 <body>
 
-<div id="splash" role="status" aria-label="CyberShield loading">
-  <svg class="shield" viewBox="0 0 100 120" aria-hidden="true">
-    <path d="M50 6 L92 22 V60 C92 88 72 106 50 114 C28 106 8 88 8 60 V22 Z"/>
-    <path class="tick" d="M32 60 L45 74 L70 44"/>
+<div class="backdrop" aria-hidden="true"><div class="grid"></div><div class="glow"></div></div>
+
+<template id="markTpl">
+  <svg class="mark" viewBox="0 0 100 120" aria-hidden="true">
+    <path class="body" d="M50 6 L92 22 V60 C92 88 72 106 50 114 C28 106 8 88 8 60 V22 Z"/>
+    <path class="shackle" d="M38 56 V46 a12 12 0 0 1 24 0 V56"/>
+    <circle class="hole" cx="50" cy="70" r="7"/>
+    <path class="stem" d="M50 76 V88"/>
+    <path class="trace" d="M8 38 H24 M92 38 H76 M8 76 H20 M92 76 H80"/>
   </svg>
-  <div id="word" aria-hidden="true"></div>
+</template>
+
+<div id="splash" role="status" aria-label="CyberShield loading">
+  <span id="splashMark"></span>
+  <div id="word" class="wordmark" aria-hidden="true"></div>
   <div class="splash-sub" id="splashSub"></div>
   <div class="bar"><i id="barFill"></i></div>
   <div class="skip">Press any key to skip</div>
 </div>
 
+<div id="gate">
+  <span id="gateMark"></span>
+  <h1>CyberShield</h1>
+  <p id="gateLead">Locked. Enter your passcode to continue.</p>
+  <div class="gatebox">
+    <input class="tin" id="gatePass" type="password" placeholder="Passcode" autocomplete="current-password" style="margin:0">
+    <button class="btn btn-primary" id="gateGo" type="button">Unlock</button>
+  </div>
+  <div id="gateMsg"></div>
+  <p class="gate-note">This passcode keeps someone from opening the app on your device. It is not an
+    account and there is no server — anyone with the device and some patience can get past it. Your
+    vault does not rely on it; that has its own encryption.</p>
+</div>
+
 <div class="wrap" id="app" hidden>
 
   <header class="topbar">
-    <span class="brand">
-      <svg viewBox="0 0 100 120" aria-hidden="true">
-        <path d="M50 6 L92 22 V60 C92 88 72 106 50 114 C28 106 8 88 8 60 V22 Z"/>
-      </svg>
-      <b>CyberShield</b>
-    </span>
+    <span class="brand"><span id="brandMark"></span><b>CyberShield</b></span>
+    <span class="status"><i></i> Nothing leaves this page</span>
     <div class="tabs" role="tablist">
       <button role="tab" id="tabAnalyse" aria-selected="true" aria-controls="panelAnalyse">Analyse</button>
       <button role="tab" id="tabHistory" aria-selected="false" aria-controls="panelHistory">History<span class="count" id="histCount"></span></button>
@@ -412,25 +397,27 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
     </div>
   </header>
 
-  <!-- ================= ANALYSE ================= -->
   <section role="tabpanel" id="panelAnalyse" aria-labelledby="tabAnalyse">
-    <div class="field">
-      <input id="pw" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
-             spellcheck="false" placeholder="Start typing…" aria-label="Password to analyse">
-      <button class="mini" id="mask" type="button" aria-pressed="false">Hide</button>
-    </div>
-
-    <div class="rail-scroll"><div class="rail" id="rail"><div class="rail-empty"></div></div></div>
-
-    <div class="verdict">
-      <div class="verdict-main">
-        <span class="grade" id="grade">—</span>
-        <span class="grade-sub" id="gradeSub">Nothing to measure yet</span>
+    <div class="hero">
+      <div class="ghost" aria-hidden="true">CYBERSHIELD</div>
+      <div class="framed">
+        <div class="field">
+          <input id="pw" type="text" autocomplete="off" autocapitalize="off" autocorrect="off"
+                 spellcheck="false" placeholder="Type a password…" aria-label="Password to analyse">
+          <button class="mini" id="mask" type="button" aria-pressed="false">Hide</button>
+        </div>
+        <div class="rail-scroll"><div class="rail" id="rail"><div class="rail-empty"></div></div></div>
+        <div class="verdict">
+          <div class="verdict-main">
+            <span class="grade" id="grade">—</span>
+            <span class="grade-sub" id="gradeSub">Nothing to measure yet</span>
+          </div>
+          <div class="readout" id="readout"></div>
+        </div>
+        <div class="gauge" id="gauge" role="img" aria-label="Strength score"></div>
+        <div class="gauge-scale"><span>trivial</span><span>weak</span><span>fair</span><span>strong</span><span>excellent</span></div>
       </div>
-      <div class="readout" id="readout"></div>
     </div>
-    <div class="gauge" id="gauge" role="img" aria-label="Strength score"></div>
-    <div class="gauge-scale"><span>trivial</span><span>weak</span><span>fair</span><span>strong</span><span>excellent</span></div>
 
     <div class="reuse" id="reuse" hidden>
       <div class="reuse-top">
@@ -448,12 +435,6 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
       </div>
     </div>
 
-    <div class="reuse" id="reuse" hidden>
-      <span class="reuse-label">Reuse</span>
-      <span class="reuse-meter" id="reuseMeter"></span>
-      <span class="reuse-text" id="reuseText"></span>
-    </div>
-
     <div class="cols">
       <section>
         <h2>Time to guess it</h2>
@@ -466,13 +447,12 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
       </section>
     </div>
 
-
     <section class="fixes" id="fixes" hidden>
       <h2>What each change would actually buy you</h2>
       <div id="fixList"></div>
-      <p class="pool-note">Measured by running each version back through the analyser, not
-        estimated. Patching the password you already have is usually worth a few bits; the
-        weak part stays weak because guessers try those edits first.</p>
+      <p class="pool-note">Measured by running each version back through the analyser, not estimated.
+        Patching the password you already have is usually worth a few bits; the weak part stays weak
+        because guessers try those edits first.</p>
     </section>
 
     <section class="gen">
@@ -497,7 +477,6 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
     </section>
   </section>
 
-  <!-- ================= HISTORY ================= -->
   <section role="tabpanel" id="panelHistory" aria-labelledby="tabHistory" hidden>
     <div class="hist-head">
       <h2 style="margin:0">Checked this session</h2>
@@ -511,9 +490,16 @@ ul.findings code{font-family:var(--mono);font-size:12.5px;background:var(--raise
       to disk — if you want a password kept, save it to the vault, where it is encrypted.</p>
   </section>
 
-  <!-- ================= VAULT ================= -->
   <section role="tabpanel" id="panelVault" aria-labelledby="tabVault" hidden>
+    <div class="vault-banner">
+      <span id="vaultMark"></span>
+      <div>
+        <h2>The Vault</h2>
+        <p>AES-256-GCM, with the key derived from your master password. Stored on this device only.</p>
+      </div>
+    </div>
     <div id="vaultView"></div>
+    <div class="applock" id="appLockBox"></div>
   </section>
 
   <p class="note" id="privacyNote"></p>
@@ -1457,6 +1443,36 @@ async function prfSecret(credIdB64) {
   return out;
 }
 
+/* ---- app passcode -------------------------------------------------
+   A lock on the front door, not authentication: there is no server to
+   authenticate against. It stops someone picking up your device and
+   reading the screen. The vault does not depend on it.
+--------------------------------------------------------------------- */
+const APPLOCK_KEY = "cybershield.applock.v1";
+const APPLOCK_ITER = 200000;
+const APPLOCK_TOKEN = "cybershield-unlocked";
+
+function appLockExists() {
+  try { return !!localStorage.getItem(APPLOCK_KEY); } catch { return false; }
+}
+async function appLockSet(passcode) {
+  const salt = rand(16);
+  const kek = await kekFromPassword(passcode, salt, APPLOCK_ITER);
+  const iv = rand(12);
+  const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, kek, te.encode(APPLOCK_TOKEN));
+  localStorage.setItem(APPLOCK_KEY, JSON.stringify(
+    { salt: b64(salt), iter: APPLOCK_ITER, iv: b64(iv), ct: b64(ct) }));
+}
+async function appLockCheck(passcode) {
+  try {
+    const rec = JSON.parse(localStorage.getItem(APPLOCK_KEY));
+    const kek = await kekFromPassword(passcode, unb64(rec.salt), rec.iter);
+    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: unb64(rec.iv) }, kek, unb64(rec.ct));
+    return td.decode(pt) === APPLOCK_TOKEN;
+  } catch { return false; }
+}
+function appLockClear() { try { localStorage.removeItem(APPLOCK_KEY); } catch {} }
+
 /* ---- public surface ---- */
 const Vault = {
   dek: null,
@@ -1551,6 +1567,13 @@ const escAll = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">":
 const GRADE_COLOR = ["var(--s0)", "var(--s1)", "var(--s2)", "var(--s3)", "var(--s4)"];
 const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/* The shield mark is one template, cloned wherever it appears. */
+function putMark(hostId) {
+  const host = $(hostId), tpl = $("markTpl");
+  if (host && tpl) host.appendChild(tpl.content.cloneNode(true));
+}
+["splashMark", "gateMark", "brandMark", "vaultMark"].forEach(putMark);
+
 /* ---------------- splash ---------------- */
 const WORDMARK = "CYBERSHIELD";
 const GLYPHS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&@!?";
@@ -1616,6 +1639,7 @@ function runSplash(done) {
 /* ---------------- tabs ---------------- */
 const TABS = [["tabAnalyse", "panelAnalyse"], ["tabHistory", "panelHistory"], ["tabVault", "panelVault"]];
 function showTab(id) {
+  document.body.classList.toggle("vault-mode", id === "tabVault");
   TABS.forEach(([t, p]) => {
     const on = t === id;
     $(t).setAttribute("aria-selected", String(on));
@@ -1888,8 +1912,12 @@ let pendingSave = null;
 let bioPossible = false;
 let autoLock = null;
 
-const LOCK_ICON = `<svg viewBox="0 0 100 120" aria-hidden="true"><path d="M50 6 L92 22 V60
-  C92 88 72 106 50 114 C28 106 8 88 8 60 V22 Z"/></svg>`;
+const LOCK_ICON = `<svg viewBox="0 0 100 120" aria-hidden="true">
+  <path fill="none" stroke="currentColor" stroke-width="6" stroke-linejoin="round"
+        d="M50 6 L92 22 V60 C92 88 72 106 50 114 C28 106 8 88 8 60 V22 Z"/>
+  <path fill="none" stroke="currentColor" stroke-width="6" stroke-linecap="round"
+        d="M38 56 V46 a12 12 0 0 1 24 0 V56"/>
+  <circle fill="currentColor" cx="50" cy="70" r="7"/></svg>`;
 
 function setMsg(text, kind = "") {
   vaultMsg = { text, kind };
@@ -2166,6 +2194,65 @@ $("plus").addEventListener("click", () => {
 });
 $("reroll").addEventListener("click", regenerate);
 
+/* ---------------- app passcode ---------------- */
+function renderAppLock() {
+  const box = $("appLockBox");
+  if (!box) return;
+  if (!subtleAvailable() || !storageAvailable()) { box.innerHTML = ""; return; }
+  const on = appLockExists();
+  box.innerHTML = on
+    ? `<h3>App passcode</h3>
+       <p>A passcode is set, and is asked for when the app opens.</p>
+       <div class="row-btns"><button class="btn btn-danger" id="lockOff" type="button">Remove passcode</button></div>
+       <p class="msg" id="lockMsg"></p>`
+    : `<h3>App passcode</h3>
+       <p>Ask for a passcode when the app opens. It keeps someone from reading the screen on your
+          device. It is not an account, and it is not what protects the vault.</p>
+       <input class="tin" id="lockNew" type="password" placeholder="Choose a passcode" autocomplete="new-password">
+       <div class="row-btns"><button class="btn" id="lockOn" type="button">Set passcode</button></div>
+       <p class="msg" id="lockMsg"></p>`;
+  const say = (t, k = "") => { const m = $("lockMsg"); if (m) { m.textContent = t; m.className = "msg " + k; } };
+  if (on) $("lockOff").addEventListener("click", () => { appLockClear(); renderAppLock(); });
+  else $("lockOn").addEventListener("click", async () => {
+    const p = $("lockNew").value;
+    if (p.length < 4) return say("Use at least 4 characters.", "err");
+    say("Setting…", "busy");
+    try { await appLockSet(p); renderAppLock(); } catch { say("Could not set it.", "err"); }
+  });
+}
+
+/* ---------------- login gate ---------------- */
+function startApp() {
+  $("app").hidden = false;
+  update();
+  regenerate();
+  renderAppLock();
+  platformAuthenticator().then(ok => {
+    bioPossible = ok;
+    if (!$("panelVault").hidden) renderVault();
+  });
+}
+
+function showGate() {
+  const gate = $("gate");
+  gate.classList.add("on");
+  $("gatePass").focus();
+  const go = async () => {
+    const val = $("gatePass").value;
+    $("gateMsg").textContent = "Checking\u2026";
+    if (await appLockCheck(val)) {
+      gate.remove();
+      startApp();
+    } else {
+      $("gateMsg").textContent = "That passcode does not match.";
+      $("gatePass").value = "";
+      $("gatePass").focus();
+    }
+  };
+  $("gateGo").addEventListener("click", go);
+  $("gatePass").addEventListener("keydown", e => { if (e.key === "Enter") go(); });
+}
+
 /* ---------------- boot ---------------- */
 $("privacyNote").innerHTML =
   `<b>Everything runs in this page.</b> Nothing you type is sent anywhere — the tool makes no network
@@ -2174,12 +2261,9 @@ $("privacyNote").innerHTML =
    encrypted with a key derived from your master password (PBKDF2-SHA256, 600,000 iterations,
    AES-256-GCM); the master password itself is never stored.`;
 
-runSplash(async () => {
-  $("app").hidden = false;
-  update();
-  regenerate();
-  bioPossible = await platformAuthenticator();
-  if (!$("panelVault").hidden) renderVault();
+runSplash(() => {
+  if (appLockExists()) showGate();
+  else { $("gate").remove(); startApp(); }
 });
 ["click", "keydown"].forEach(ev => document.addEventListener(ev, touchActivity, true));
 
